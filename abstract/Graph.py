@@ -15,7 +15,7 @@ class Graph:
 		self._is_strict = strict
 		self._ordering = ordering
 
-		# if a dictionary or an object with a __graph_dict__() method is passed use that to create the graph
+		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 		if obj:
 			self.append(obj=obj)
 
@@ -403,7 +403,7 @@ class Graph:
 
 	def append(self, obj):
 		try:
-			dictionary = obj.__graph_dict__()
+			dictionary = obj.__graph__()
 		except AttributeError:
 			dictionary = obj
 
