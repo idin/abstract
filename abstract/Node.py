@@ -11,10 +11,68 @@ VERTICAL = u'\u2502'
 
 class Node(GraphObj):
 	def __init__(self, graph, name, value=None, label=None, style=None, **kwargs):
-		style = style or NodeStyle()
+		"""
+		:param .Graph.Graph graph: the graph this node belongs to
+		:param str name: name of the node (code friendly, no weird characters, etc.) it should be unique in the graph
+		:param value: any object stored in the node
+		:param str label: a more presentable/user-friendly name
+		:param style:
+		:param kwargs:
+		"""
 		super().__init__(graph=graph, id=name, value=value, label=label, style=style, **kwargs)
 		self._outward_edges_dict = OrderedDict()
 		self._inward_edges_dict = OrderedDict()
+
+	def __getstate__(self):
+		state = super().__getstate__()
+		state.update({
+			'outward_edges_dict': self._outward_edges_dict,
+			'inward_edges_dict': self._inward_edges_dict
+		})
+		return state
+
+	def __setstate__(self, state):
+		super().__setstate__(state=state)
+		self._outward_edges_dict = state['outward_edges_dict']
+		self._inward_edges_dict = state['inward_edges_dict']
+		for outward_edge in self._outward_edges_dict.values:
+			outward_edge._start = self
+		for inward_edge in self._inward_edges_dict.values:
+			inward_edge._end = self
+
+	@property
+	def style(self):
+		"""
+		:rtype: NodeStyle
+		"""
+		if self._style is None:
+			return self.graph._node_styles['default']
+		elif isinstance(self._style, str):
+			return self.graph._node_styles[self._style]
+		else:
+			raise TypeError(f'{self}._style is of type {type(self._style)}')
+
+	@style.setter
+	def style(self, style):
+		"""
+		:type style: NodeStyle or NoneType or dict
+		"""
+		if style is None:
+			self._style = None
+		else:
+			if isinstance(style, dict):
+				the_style = NodeStyle(**style)
+			elif isinstance(style, NodeStyle):
+				the_style = style.copy()
+			elif isinstance(style, str):
+				the_style = self.graph._node_styles[style]
+			else:
+				raise TypeError(f'node.style is of type {type(style)}')
+
+			if the_style.name is None:
+				the_style._name = self.name
+			self.graph._node_styles[the_style.name] = the_style
+			self._style = the_style.name
 
 	@property
 	def name(self):
@@ -54,8 +112,15 @@ class Node(GraphObj):
 
 	@property
 	def label(self):
-		result = self._label or str(self.id)
+		if self._label:
+			result = str(self._label)
+		else:
+			result = str(self.id)
 		return result.replace('"', '\\"')
+
+	@label.setter
+	def label(self, label):
+		self._label = label
 
 	def __str__(self):
 		return f'Node:{self.id}'
@@ -190,12 +255,3 @@ class Node(GraphObj):
 	def remove_edges(self):
 		for edge in self.edges:
 			edge.remove_self()
-
-
-
-
-
-
-
-
-

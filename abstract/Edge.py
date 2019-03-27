@@ -2,6 +2,7 @@ from .GraphObj import GraphObj
 from .Style import EdgeStyle
 from .Node import Node
 
+
 class Edge(GraphObj):
 	def __init__(self, graph, start, end, id=None, value=None, label=None, style=None, **kwargs):
 		"""
@@ -13,23 +14,67 @@ class Edge(GraphObj):
 		:param str label: a label to show
 		:param EdgeStyle or NoneType style: the style of the edge
 		"""
-		style = style or EdgeStyle()
-		super().__init__(graph=graph, id=id, value=value, label=label, style=style, **kwargs)
+		super().__init__(graph=graph, id=None, value=value, label=label, style=style, **kwargs)
 		self._start = start
 		self._end = end
 		self._id = id
 		start.append_outward_edge(edge=self)
 		end.append_inward_edge(edge=self)
 
+	def __getstate__(self):
+		state = super().__getstate__()
+		state.update({
+			'start': None,
+			'end': None,
+			'id': self._id
+		})
+		return state
+
+	def __setstate__(self, state):
+		super().__setstate__(state=state)
+		self._start = state['start']
+		self._end = state['end']
+		self._id = state['id']
+
+	@property
+	def style(self):
+		"""
+		:rtype: EdgeStyle
+		"""
+		if self._style is None:
+			return self.graph._edge_styles['default']
+		elif isinstance(self._style, str):
+			return self.graph._edge_styles[self._style]
+		else:
+			raise TypeError(f'edge.style is of type {type(self._style)}')
+
+	@style.setter
+	def style(self, style):
+		if style is None:
+			self._style = None
+		else:
+			if isinstance(style, dict):
+				the_style = EdgeStyle(**style)
+			elif isinstance(style, EdgeStyle):
+				the_style = style.copy()
+			elif isinstance(style, str):
+				the_style = self.graph._edge_styles[style]
+			else:
+				raise TypeError(f'edge.style is of type {type(style)}')
+
+			if the_style.name is None:
+				the_style._name = str(self.id)
+			self.graph._edge_styles[the_style.name] = the_style
+			self._style = the_style.name
 
 	@property
 	def id(self):
 		if self._start is None:
 			raise ValueError('This Edge does not have a start!')
-		elif  self._end is None:
+		elif self._end is None:
 			raise ValueError('This Edge does not have an end!')
 
-		return (self.start.id, self.end.id, self._id)
+		return self.start.id, self.end.id, self._id
 
 	def __str__(self):
 		return f'Edge:{self.start}-{self.end}'
@@ -49,16 +94,15 @@ class Edge(GraphObj):
 		else:
 			return f'label="{self.label_or_value}"'
 
-
 	def get_graphviz_str(self):
 		without_style = f'"{self.start.name}" -> "{self.end.name}"'
 		style = self.get_graphviz_style_str()
 		label = self.get_graphviz_label_str()
-		if style=='' and label=='':
+		if style == '' and label == '':
 			return without_style
-		elif style=='':
+		elif style == '':
 			return f'{without_style} [{label}]'
-		elif label=='':
+		elif label == '':
 			return f'{without_style} [{style}]'
 		else:
 			return f'{without_style} [{label} {style}]'
@@ -89,5 +133,3 @@ class Edge(GraphObj):
 		self.end.remove_inward_edge(edge=self)
 		self._start = None
 		self._end = None
-
-

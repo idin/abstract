@@ -1,10 +1,12 @@
 import hashlib
 import base32hex
 
+
 def make_hash_sha256(obj):
 	hasher = hashlib.sha256()
 	hasher.update(repr(obj).encode())
 	return base32hex.b32encode(hasher.digest()).replace('=', '-')
+
 
 class GraphObj:
 	def __init__(self, graph, id, value=None, label=None, style=None, **kwargs):
@@ -12,9 +14,30 @@ class GraphObj:
 		self._id = id
 		self._value = value
 		self._label = label
-		self._style = style
+		self._style = None
 		self._frozen = False
 		self._parameters = dict(kwargs)
+		self.style = style
+
+	def __getstate__(self):
+		return {
+			'graph': None,
+			'id': self._id,
+			'value': self._value,
+			'label': self._label,
+			'style': self._style,
+			'frozen': self._frozen,
+			'parameters': self._parameters
+		}
+
+	def __setstate__(self, state):
+		self._graph = state['graph']
+		self._id = state['id']
+		self._value = state['value']
+		self._label = state['label']
+		self._style = state['style']
+		self._frozen = state['frozen']
+		self._parameters = state['parameters']
 
 	def get(self, item):
 		return self._parameters[item]
@@ -74,21 +97,15 @@ class GraphObj:
 		else:
 			return self._value
 
-	@property
-	def style(self):
-		return self._style
-
-	@style.setter
-	def style(self, style):
-		self._style = style
-
 	def __eq__(self, other):
 		"""
 		:type other: GraphObj
 		:rtype: bool
 		"""
-		if not isinstance(other, self.__class__): raise TypeError(f'"{other}" is of type: {type(other)}')
-		if self.graph != other.graph: raise ValueError('two GraphObj from different graphs cannot be compared')
+		if not isinstance(other, self.__class__):
+			raise TypeError(f'"{other}" is of type: {type(other)}')
+		if self.graph != other.graph:
+			raise ValueError('two GraphObj from different graphs cannot be compared')
 		return self.id == other.id
 
 	def __ne__(self, other):
@@ -96,8 +113,8 @@ class GraphObj:
 		:type other: GraphObj
 		:rtype: bool
 		"""
-		if not isinstance(other, self.__class__): raise TypeError(f'"{other}" is of type: {type(other)}')
-		if self.graph != other.graph: raise ValueError('two GraphObj from different graphs cannot be compared')
+		if not isinstance(other, self.__class__):
+			raise TypeError(f'"{other}" is of type: {type(other)}')
+		if self.graph != other.graph:
+			raise ValueError('two GraphObj from different graphs cannot be compared')
 		return self._id != other._id
-
-

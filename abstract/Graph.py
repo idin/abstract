@@ -1,11 +1,12 @@
 from .Node import Node
 from .Edge import Edge
-from collections import OrderedDict
-import graphviz
-from .Style import NodeStyle
+from .Style import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 
+from collections import OrderedDict
+import graphviz
+import warnings
 import os
 
 
@@ -14,10 +15,30 @@ class Graph:
 		self._nodes = OrderedDict()
 		self._is_strict = strict
 		self._ordering = ordering
+		self._node_styles = {'default': NodeStyle(name='default')}
+		self._edge_styles = {'default': EdgeStyle(name='default')}
 
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 		if obj:
 			self.append(obj=obj)
+
+	def __getstate__(self):
+		return {
+			'nodes': self._nodes,
+			'is_strict': self._is_strict,
+			'ordering': self._ordering,
+			'node_styles': self._node_styles,
+			'edge_styles': self._edge_styles
+		}
+
+	def __setstate__(self, state):
+		self._nodes = state['nodes']
+		for node in self._nodes:
+			node._graph = self
+		self._is_strict = state['is_strict']
+		self._ordering = state['ordering']
+		self._node_styles = state['node_styles']
+		self._edge_styles = state['edge_styles']
 
 	@property
 	def nodes(self):
@@ -280,21 +301,29 @@ class Graph:
 		:param str name: name of the new node
 		:param str or NoneType label: a label for the node
 		:param value: node value
-		:param NodeStyle style: style of the node
+		:param NodeStyle or str style: style of the node
 		:param str if_node_exists: what to do if a node with that name exists. One of 'warn', 'error', 'ignore'
 		:param kwargs:
 		:rtype: Node
 		"""
+
 		if name in self._nodes:
-			if if_node_exists == 'error':
-				raise KeyError(f'duplicate node id:"{id}"!')
+
+			if if_node_exists == 'ignore':
+				pass
+			elif if_node_exists == 'warn':
+				warnings.warn(f'Warning! A node with name "{id}" already exists in graph!')
 			else:
-				node = self.get_node(node=name)
-				if if_node_exists != 'ignore':
-					print(f'Warning! A node with name "{id}" already exists in graph!')
-				if style is not None:
-					node.style = style
-				return node
+				raise KeyError(f'duplicate node id:"{id}"!')
+
+			node = self.get_node(node=name)
+			if style is not None:
+				node.style = style
+			if label is not None:
+				node.label = label
+			if value is not None:
+				node.value = value
+			return node
 
 		else:
 			node = Node(name=name, graph=self, label=label, value=value, style=style, **kwargs)
@@ -306,22 +335,28 @@ class Graph:
 		:param Node or str start: starting node
 		:param Node or str end: end node
 		:param id:
-		:param label:
+		:param str label: optional label of the edge
 		:param value:
-		:param style:
+		:param EdgeStyle or NoneType style:
 		:param if_edge_exists:
 		:param kwargs:
 		:return:
 		"""
 		start = self.get_node(node=start)
 		end = self.get_node(node=end)
-
 		edge_id = (start.id, end.id, id)
-		if edge_id in start.outward_edge_ids and edge_id in end.inward_edge_ids:
-			if if_edge_exists == 'error':
+
+		if edge_id not in start.outward_edge_ids and edge_id not in end.inward_edge_ids:
+			edge = Edge(graph=self, start=start, end=end, id=id, value=value, label=label, style=style, **kwargs)
+
+		elif edge_id in start.outward_edge_ids and edge_id in end.inward_edge_ids:
+			if if_edge_exists == 'ignore':
+				pass
+			elif if_edge_exists == 'warn':
+				warnings.warn(f'Warning! Edge: {edge_id} already exists!')
+			else:
 				raise ValueError(f'Error! Edge {edge_id} already exists!')
-			elif if_edge_exists != 'ignore':
-				print(f'Warning! Edge: {edge_id} already exists!')
+
 			edge = start.get_outward_edge(id=edge_id)
 			if style is not None:
 				edge.style = style
@@ -330,11 +365,17 @@ class Graph:
 			if value is not None:
 				edge.value = value
 
-		elif edge_id not in start.outward_edge_ids and edge_id not in end.inward_edge_ids:
-			edge = Edge(graph=self, start=start, end=end, id=id, value=value, label=label, style=style, **kwargs)
+		elif edge_id in start.outward_edges and edge_id not in end.inward_edges:
+			raise ValueError(
+				f'This is very weird! Edge {edge_id} already in the outward edges of start node '
+				f'but not the inward edges of the end node!'
+			)
 
 		else:
-			raise ValueError(f'Error! Edge {edge_id} has a different start or end!')
+			raise ValueError(
+				f'This is very weird! Edge {edge_id} already in the inward edges of end node '
+				f'but not the outward edges of the start node!'
+			)
 
 		return edge
 
@@ -376,7 +417,7 @@ class Graph:
 			if depth == 0:
 				return []
 		result = obj.__children__()
-
+		return result
 
 	@classmethod
 	def from_object(cls, obj, strict=False, max_depth=None, max_height=None):
@@ -410,14 +451,30 @@ class Graph:
 		if 'strict' in dictionary:
 			self._is_strict = dictionary['strict']
 
+		if 'node_styles' in dictionary:
+			self._node_styles.update(dictionary['node_styles'])
+
+		if 'edge_styles' in dictionary:
+			self._edge_styles.update(dictionary['edge_styles'])
+
 		for node_name, node_dict in dictionary['nodes'].items():
-			if 'style' in node_dict['meta_data']:
-				style = NodeStyle(**node_dict['meta_data']['style'])
+			self.add_node(name=node_name, **node_dict)
+
+		for parent_child_edgedict in dictionary['edges']:
+
+			if len(parent_child_edgedict) == 2:
+				parent, child = parent_child_edgedict
+				self.connect(start=parent, end=child)
+
+			elif len(parent_child_edgedict) == 3:
+				parent, child, edge_dict = parent_child_edgedict
+				self.connect(start=parent, end=child, **edge_dict)
+
+			elif len(parent_child_edgedict) < 2:
+				raise ValueError('Too few objects in an edge definition!')
 			else:
-				style = None
-			self.add_node(name=node_name, label=node_dict['label'], value=node_dict['value'], style=style)
-		for parent, child in dictionary['edges']:
-			self.connect(start=parent, end=child)
+				raise ValueError('Too many objects in an edge definition!')
+
 		return self
 
 	@classmethod
@@ -425,4 +482,3 @@ class Graph:
 		graph = cls()
 		graph.append(obj=obj)
 		return graph
-
