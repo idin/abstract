@@ -28,7 +28,7 @@ setup(
 	],
 
 	packages=find_packages(exclude=("jupyter_tests", ".idea", ".git")),
-	install_requires=['graphviz'],
+	install_requires=['graphviz', 'base32hex'],
 	python_requires='~=3.6',
 	zip_safe=True,
 	test_suite='nose.collector',
