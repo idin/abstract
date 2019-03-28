@@ -22,6 +22,8 @@ class Node(GraphObj):
 		super().__init__(graph=graph, id=name, value=value, label=label, style=style, **kwargs)
 		self._outward_edges_dict = OrderedDict()
 		self._inward_edges_dict = OrderedDict()
+		self._outward_edges_have_start_node = True
+		self._inward_edges_have_end_node = True
 
 	def __getstate__(self):
 		state = super().__getstate__()
@@ -35,10 +37,8 @@ class Node(GraphObj):
 		super().__setstate__(state=state)
 		self._outward_edges_dict = state['outward_edges_dict']
 		self._inward_edges_dict = state['inward_edges_dict']
-		for outward_edge in self._outward_edges_dict.values:
-			outward_edge._start = self
-		for inward_edge in self._inward_edges_dict.values:
-			inward_edge._end = self
+		self._outward_edges_have_start_node = False
+		self._inward_edges_have_end_node = False
 
 	@property
 	def style(self):
@@ -74,41 +74,61 @@ class Node(GraphObj):
 			self.graph._node_styles[the_style.name] = the_style
 			self._style = the_style.name
 
+	def update_edges(self):
+		if not self._outward_edges_have_start_node:
+			for outward_edge in self._outward_edges_dict.values():
+				outward_edge._start = self
+				outward_edge._graph = self.graph
+		self._outward_edges_have_start_node = True
+		if not self._inward_edges_have_end_node:
+			for inward_edge in self._inward_edges_dict.values():
+				inward_edge._end = self
+				inward_edge._graph = self.graph
+		self._inward_edges_have_end_node = True
+
+	@property
+	def outward_edges_dict(self):
+		return self._outward_edges_dict
+
+	@property
+	def inward_edges_dict(self):
+		return self._inward_edges_dict
+
 	@property
 	def name(self):
 		return self.id
 
 	@property
 	def outward_edge_ids(self):
-		return list(self._outward_edges_dict.keys())
+		return list(self.outward_edges_dict.keys())
 
 	@property
 	def inward_edge_ids(self):
-		return list(self._inward_edges_dict.keys())
+		return list(self.inward_edges_dict.keys())
 
 	def get_outward_edge(self, id):
-		return self._outward_edges_dict[id]
+		return self.outward_edges_dict[id]
 
 	def get_inward_edge(self, id):
-		return self._inward_edges_dict[id]
+		return self.inward_edges_dict[id]
 
 	def append_outward_edge(self, edge):
 		"""
 		:type edge: GraphObj
 		"""
-		self._outward_edges_dict[edge.id] = edge
+		self.outward_edges_dict[edge.id] = edge
 
 	def append_inward_edge(self, edge):
 		"""
 		:type edge: GraphObj
 		"""
-		self._inward_edges_dict[edge.id] = edge
+		self.inward_edges_dict[edge.id] = edge
 
 	def remove_outward_edge(self, edge):
-		del self._outward_edges_dict[edge.id]
+		del self.outward_edges_dict[edge.id]
 
 	def remove_inward_edge(self, edge):
-		del self._inward_edges_dict[edge.id]
+		del self.inward_edges_dict[edge.id]
 
 	@property
 	def label(self):
@@ -244,10 +264,10 @@ class Node(GraphObj):
 		:rtype: list[Edge]
 		"""
 		result = []
-		for edge in self._outward_edges_dict.values():
+		for edge in self.outward_edges_dict.values():
 			if edge not in result:
 				result.append(edge)
-		for edge in self._outward_edges_dict.values():
+		for edge in self.outward_edges_dict.values():
 			if edge not in result:
 				result.append(edge)
 		return result

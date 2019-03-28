@@ -12,19 +12,19 @@ import os
 
 class Graph:
 	def __init__(self, obj=None, strict=True, ordering=True):
-		self._nodes = OrderedDict()
+		self._nodes_dict = OrderedDict()
 		self._is_strict = strict
 		self._ordering = ordering
 		self._node_styles = {'default': NodeStyle(name='default')}
 		self._edge_styles = {'default': EdgeStyle(name='default')}
-
+		self._nodes_have_graph = True
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 		if obj:
 			self.append(obj=obj)
 
 	def __getstate__(self):
 		return {
-			'nodes': self._nodes,
+			'nodes_dict': self.nodes_dict,
 			'is_strict': self._is_strict,
 			'ordering': self._ordering,
 			'node_styles': self._node_styles,
@@ -32,20 +32,34 @@ class Graph:
 		}
 
 	def __setstate__(self, state):
-		self._nodes = state['nodes']
-		for node in self._nodes:
-			node._graph = self
+		self._nodes_dict = state['nodes_dict']
 		self._is_strict = state['is_strict']
 		self._ordering = state['ordering']
 		self._node_styles = state['node_styles']
 		self._edge_styles = state['edge_styles']
+		self._nodes_have_graph = False
+		self.update_nodes()
+
+	def update_nodes(self):
+		if not self._nodes_have_graph:
+			for node in self._nodes_dict.values():
+				node._graph = self
+				node.update_edges()
+		self._nodes_have_graph = True
+
+	@property
+	def nodes_dict(self):
+		"""
+		:rtype: dict
+		"""
+		return self._nodes_dict
 
 	@property
 	def nodes(self):
 		"""
 		:rtype: list[Node]
 		"""
-		return list(self._nodes.values())
+		return list(self.nodes_dict.values())
 
 	@property
 	def edges(self):
@@ -84,7 +98,7 @@ class Graph:
 		return first_part+second_part
 
 	def get_graphviz_str(self):
-		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self._nodes.values()]) + '\n\t}\n'
+		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self.nodes_dict.values()]) + '\n\t}\n'
 		edges_str = '\t' + '\n\t'.join([edge.get_graphviz_str() for edge in self.edges]) + '\n'
 		return self._graphviz_header + nodes_str + edges_str + '}'
 
@@ -106,9 +120,9 @@ class Graph:
 		:rtype: Node
 		"""
 		if isinstance(node, str):
-			return self._nodes[node]
+			return self.nodes_dict[node]
 		else:
-			return self._nodes[node.id]
+			return self.nodes_dict[node.id]
 
 	def get_node_name(self, node):
 		"""
@@ -116,7 +130,7 @@ class Graph:
 		:rtype: Node
 		"""
 		if isinstance(node, str):
-			return self._nodes[node].id
+			return self.nodes_dict[node].id
 		else:
 			return node.id
 
@@ -307,7 +321,7 @@ class Graph:
 		:rtype: Node
 		"""
 
-		if name in self._nodes:
+		if name in self.nodes_dict:
 
 			if if_node_exists == 'ignore':
 				pass
@@ -327,7 +341,7 @@ class Graph:
 
 		else:
 			node = Node(name=name, graph=self, label=label, value=value, style=style, **kwargs)
-			self._nodes[name] = node
+			self.nodes_dict[name] = node
 			return node
 
 	def connect(self, start, end, id=None, label=None, value=None, style=None, if_edge_exists='warn', **kwargs):
@@ -396,7 +410,7 @@ class Graph:
 		node = self.get_node(node=node)
 		node.remove_edges()
 		node._graph = None
-		del self._nodes[node.id]
+		del self.nodes_dict[node.id]
 
 	@classmethod
 	def from_lists(

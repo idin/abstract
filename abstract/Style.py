@@ -14,9 +14,23 @@ class Style:
 	def __init__(self, name=None, **kwargs):
 		self._name = name
 		self._dictionary = kwargs
+		self.update_dictionary_keys()
+
+	def update_dictionary_keys(self):
 		for old_key, new_key in STYLE_RENAME.items():
 			if old_key in self.dictionary:
 				self._dictionary[new_key] = self._dictionary.pop(old_key)
+
+	def __getstate__(self):
+		return {
+			'name': self._name,
+			'dictionary': self._dictionary
+		}
+
+	def __setstate__(self, state):
+		self._name = state['name']
+		self._dictionary = state['dictionary']
+		self.update_dictionary_keys()
 
 	@property
 	def name(self):
