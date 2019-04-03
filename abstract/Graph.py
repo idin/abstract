@@ -228,10 +228,11 @@ class Graph:
 			ancestors = []
 			ancestors_dict = {1: []}
 			for parent in parents:
+				if parent not in ancestors:
+					ancestors.append(parent)
+					ancestors_dict[1].append(parent)
+
 				if parent not in nodes_travelled:
-					if parent not in ancestors:
-						ancestors.append(parent)
-						ancestors_dict[1].append(parent)
 					parent_ancestors, parent_ancestors_dict = self._get_ancestors(node=parent, nodes_travelled=nodes_travelled)
 					for ancestor in parent_ancestors:
 						if ancestor not in ancestors:
@@ -246,6 +247,10 @@ class Graph:
 			return ancestors_dict
 		else:
 			return ancestors
+
+	def is_node_in_loop(self, node):
+		node = self.get_node(node)
+		return node in self.get_ancestors(node=node, distance=False)
 
 	def _get_descendants(self, node, nodes_travelled=None):
 		"""
