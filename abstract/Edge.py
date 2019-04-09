@@ -21,6 +21,15 @@ class Edge(GraphObj):
 		start.append_outward_edge(edge=self)
 		end.append_inward_edge(edge=self)
 
+	def is_similar_to(self, other):
+		"""
+		:type other: Edge
+		:rtype: bool
+		"""
+		if not super().is_similar_to(other=other):
+			return False
+		return self._start._id == other._start._id and self._end._id == other._end._id and self._id == other._id
+
 	def __getstate__(self):
 		state = super().__getstate__()
 		state.update({
