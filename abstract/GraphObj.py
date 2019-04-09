@@ -60,7 +60,7 @@ class GraphObj:
 		return self._id
 
 	def __hash__(self):
-		return make_hash_sha256((self._graph.__hash__(), self.id))
+		return make_hash_sha256((self._graph.__hash__(), self.id)).__hash__()
 
 	@property
 	def is_frozen(self):
@@ -118,3 +118,10 @@ class GraphObj:
 		if self.graph != other.graph:
 			raise ValueError('two GraphObj from different graphs cannot be compared')
 		return self._id != other._id
+
+	def is_similar_to(self, other):
+		"""
+		:type other: GraphObj
+		:rtype: bool
+		"""
+		return self._id == other._id and self._value == other._value and self._style == other._style and self._parameters == other._parameters

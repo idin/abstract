@@ -40,6 +40,27 @@ class Node(GraphObj):
 		self._outward_edges_have_start_node = False
 		self._inward_edges_have_end_node = False
 
+	def is_similar_to(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		if not super().is_similar_to(other=other):
+			return False
+		if len(self._outward_edges_dict) != len(other._outward_edges_dict):
+			return False
+		if len(self._inward_edges_dict) != len(other._inward_edges_dict):
+			return False
+		for id, outward_edge in self._outward_edges_dict.items():
+			other_outward_edge = other._outward_edges_dict[id]
+			if not outward_edge.is_similar_to(other=other_outward_edge):
+				return False
+		for id, inward_edge in self._inward_edges_dict.items():
+			other_inward_edge = other._inward_edges_dict[id]
+			if not inward_edge.is_similar_to(other=other_inward_edge):
+				return False
+		return True
+
 	@property
 	def style(self):
 		"""

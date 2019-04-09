@@ -470,6 +470,9 @@ class Graph:
 		if 'strict' in dictionary:
 			self._is_strict = dictionary['strict']
 
+		if 'ordering' in dictionary:
+			self._ordering = dictionary['ordering']
+
 		if 'node_styles' in dictionary:
 			self._node_styles.update(dictionary['node_styles'])
 
@@ -479,22 +482,80 @@ class Graph:
 		for node_name, node_dict in dictionary['nodes'].items():
 			self.add_node(name=node_name, **node_dict)
 
-		for parent_child_edgedict in dictionary['edges']:
+		for parent_child_edge_dict in dictionary['edges']:
 
-			if len(parent_child_edgedict) == 2:
-				parent, child = parent_child_edgedict
+			if len(parent_child_edge_dict) == 2:
+				parent, child = parent_child_edge_dict
 				self.connect(start=parent, end=child)
 
-			elif len(parent_child_edgedict) == 3:
-				parent, child, edge_dict = parent_child_edgedict
+			elif len(parent_child_edge_dict) == 3:
+				parent, child, edge_dict = parent_child_edge_dict
 				self.connect(start=parent, end=child, **edge_dict)
 
-			elif len(parent_child_edgedict) < 2:
+			elif len(parent_child_edge_dict) < 2:
 				raise ValueError('Too few objects in an edge definition!')
 			else:
 				raise ValueError('Too many objects in an edge definition!')
 
 		return self
+
+	def __graph__(self):
+		nodes_dict = {}
+		edges_list = []
+		for node in self.nodes:
+			nodes_dict[node._id] = {
+				'label': node._label,
+				'value': node._value,
+				'style': node._style
+			}
+
+			for edge in node.outward_edges:
+				edges_list.append([
+					edge.start._id,
+					edge.end._id,
+					{
+						'id': edge._id,
+						'label': edge._label,
+						'value': edge._value,
+						'style': edge._style
+					}
+				])
+
+		return {
+			'strict': self._is_strict,
+			'ordering': self._ordering,
+			'node_styles': self._node_styles,
+			'edge_styles': self._edge_styles,
+			'nodes': nodes_dict,
+			'edges': edges_list
+		}
+
+	def is_similar_to(self, other):
+		"""
+		:type other: Graph
+		:rtype: bool
+		"""
+		if len(self._nodes_dict) != len(other._nodes_dict):
+			return False
+
+		for name, node in self._nodes_dict.items():
+			other_node = other._nodes_dict[name]
+			if not node.is_similar_to(other=other_node):
+				return False
+
+		if self._is_strict != other._is_strict:
+			return False
+
+		if self._ordering != other._ordering:
+			return False
+
+		if self._node_styles != other._node_styles:
+			return False
+
+		if self._edge_styles != other._edge_styles:
+			return False
+
+		return True
 
 	@classmethod
 	def from_dict(cls, obj):
