@@ -1,4 +1,4 @@
-# Abstract
+# *Abstract*
 Abstract is a Python library for creating and drawing graphs 
 and taking advantage of graph properties.
 
@@ -12,9 +12,9 @@ or
 pip install git+https://github.com/idin/abstract.git
 ```
 
+## *Graph*
 
-## Graph
-
+### Introduction
 In computer science, a graph is an abstract data type that 
 is meant to implement the undirected graph and directed graph 
 concepts from mathematics; specifically, the field of graph theory. 
@@ -30,13 +30,12 @@ The vertices may be part of the graph structure, or may be external
 entities represented by integer indices or references. 
 [[1]](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
 
-## Usage
 
+
+### Usage
 The *Graph* class allows you to create nodes and edges and 
 visualize the resulting graph. Edges can have direction which
 indicates parent-child relationship.
-
-### *Graph*
 
 To construct a new graph, use *Graph()*.
 ```python
@@ -102,6 +101,39 @@ graph.draw()
 graph.draw(path='my_graph.png', view=True)
 
 ```
+
+### *Graph(obj)*
+You can create a graph from any object that has a "*\_\_graph\_\_()*" method. 
+Examples of such objects are: 
+* *Graph* class from this library
+* *Pensieve* class from the [pensieve](https://pypi.org/project/pensieve/) library
+
+```python
+from pensieve import Pensieve
+from abstract import Graph
+
+pensieve = Pensieve()
+pensieve['one'] = 1
+pensieve['two'] = 2
+pensieve.store(key='three', precursors=['one', 'two'], function=lambda x: x['one'] + x['two'])
+graph = Graph(pensieve)
+```
+
+### *draw_graph*
+In case you just want to draw the graph of an object or create a graph and immediately render it
+you can just use the *draw_graph* method. It accepts anything that the *Graph* class accepts.
+
+```python
+from pensieve import Pensieve
+from abstract import draw_graph
+
+pensieve = Pensieve()
+pensieve['one'] = 1
+pensieve['two'] = 2
+pensieve.store(key='three', precursors=['one', 'two'], function=lambda x: x['one'] + x['two'])
+draw_graph(pensieve)
+```
+
 
 ## Future Features
 
