@@ -1,7 +1,6 @@
 from .GraphObj import GraphObj
 from .Style import NodeStyle
 
-from collections import OrderedDict
 
 CORNER = u'\u2514'
 TWO_WAY = u'\u251C'
@@ -20,8 +19,8 @@ class Node(GraphObj):
 		:param kwargs:
 		"""
 		super().__init__(graph=graph, id=name, value=value, label=label, style=style, **kwargs)
-		self._outward_edges_dict = OrderedDict()
-		self._inward_edges_dict = OrderedDict()
+		self._outward_edges_dict = dict()
+		self._inward_edges_dict = dict()
 		self._outward_edges_have_start_node = True
 		self._inward_edges_have_end_node = True
 

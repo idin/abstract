@@ -16,12 +16,6 @@ class Style:
 		self._dictionary = kwargs
 		self.update_dictionary_keys()
 
-	def __eq__(self, other):
-		return self._name == other._name and self._dictionary == other._dictionary
-
-	def __ne__(self, other):
-		return not self.__eq__(other=other)
-
 	def update_dictionary_keys(self):
 		for old_key, new_key in STYLE_RENAME.items():
 			if old_key in self.dictionary:
@@ -68,7 +62,7 @@ class Style:
 
 	def copy(self):
 		result = self.__class__(name=self._name)
-		result._dictionary = self.dictionary
+		result._dictionary = self.dictionary.copy()
 		return result
 
 	def update(self, other, inplace=False):
