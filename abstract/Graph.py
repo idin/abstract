@@ -4,15 +4,18 @@ from .Style import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 
-from collections import OrderedDict
 import graphviz
 import warnings
 import os
 
 
+def draw_graph(*args, **kwargs):
+	return Graph(*args, **kwargs).render()
+
+
 class Graph:
 	def __init__(self, obj=None, strict=True, ordering=True):
-		self._nodes_dict = OrderedDict()
+		self._nodes_dict = {}
 		self._is_strict = strict
 		self._ordering = ordering
 		self._node_styles = {'default': NodeStyle(name='default')}
@@ -40,6 +43,9 @@ class Graph:
 		self._nodes_have_graph = False
 		self.update_nodes()
 
+	def __contains__(self, item):
+		return item in self._nodes_dict
+
 	def update_nodes(self):
 		if not self._nodes_have_graph:
 			for node in self._nodes_dict.values():
@@ -50,7 +56,7 @@ class Graph:
 	@property
 	def nodes_dict(self):
 		"""
-		:rtype: dict
+		:rtype: dict[str, Node]
 		"""
 		return self._nodes_dict
 

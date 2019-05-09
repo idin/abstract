@@ -1,4 +1,4 @@
-from .Graph import Graph
+from .Graph import Graph, draw_graph
 from .Node import Node
 from .Edge import Edge
 from .Style import NodeStyle, EdgeStyle
