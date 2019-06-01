@@ -4,3 +4,4 @@ from .Edge import Edge
 from .Style import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
+from .Palette import Palette
