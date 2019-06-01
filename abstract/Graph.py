@@ -4,16 +4,17 @@ from .Style import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 from .parse_indentations_function import parse_indentations
+from .Palette import Palette
 
 import graphviz
 import warnings
 import os
 from copy import deepcopy
-from .Palette import Palette
+import random
+
 
 def draw_graph(*args, **kwargs):
 	return Graph(*args, **kwargs).render()
-
 
 
 class Graph:
@@ -197,16 +198,28 @@ class Graph:
 			tree_strings.append(tree_string)
 		return '\n'.join(tree_strings)
 
-	def get_graphviz_header(self, direction=None):
+	def get_graphviz_header(self, direction=None, height=None, width=None, background_colour=None):
 		if self._is_strict:
 			first_part = 'strict digraph G {\n'
 		else:
 			first_part = 'digraph G{\n'
 
-		if self._ordering:
-			second_part = ''
-		else:
-			second_part = '\tordering=out;\n'
+		second_part = ''
+		if background_colour is not None:
+			second_part += f'\tbgcolor="{background_colour}";\n'
+
+		if not self._ordering:
+			second_part += '\tordering=out;\n'
+
+		if height is not None and width is not None:
+			second_part += f'\tsize="{width},{height}!";\n'
+			second_part += '\tratio="fill";\n'
+		elif height is not None:
+			second_part += f'\tsize="{height}!";\n'
+			second_part += '\tratio="fill";\n'
+		elif width is not None:
+			second_part += f'\tsize="{width}!";\n'
+			second_part += '\tratio="fill";\n'
 
 		direction = direction or self._direction
 		direction = direction.upper()
@@ -217,22 +230,28 @@ class Graph:
 
 		return first_part + second_part + third_part
 
-	def get_graphviz_str(self, direction=None):
+	def get_graphviz_str(self, direction=None, height=None, width=None, background_colour=None):
 		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self.nodes_dict.values()]) + '\n\t}\n'
 		edges_str = '\t' + '\n\t'.join([edge.get_graphviz_str() for edge in self.edges]) + '\n'
-		return self.get_graphviz_header(direction=direction) + nodes_str + edges_str + '}'
+		header = self.get_graphviz_header(direction=direction, height=height, width=width, background_colour=background_colour)
+		return header + nodes_str + edges_str + '}'
 
-	def render(self, path=None, view=True, direction=None):
+	def render(self, path=None, view=True, direction=None, height=None, width=None, background_colour=None):
 
 		if path is None:
 			return graphviz.Source(source=self.get_graphviz_str(direction=direction))
 		else:
 			filename, file_extension = os.path.splitext(path)
 			output_format = file_extension.lstrip('.')
-			source = graphviz.Source(source=self.get_graphviz_str(direction=direction), format=output_format)
+			graphviz_str = self.get_graphviz_str(
+				direction=direction, height=height, width=width, background_colour=background_colour
+			)
+			source = graphviz.Source(source=graphviz_str, format=output_format)
 			return source.render(filename=filename, view=view)
 
 	draw = render
+	display = render
+	visualize = render
 
 	def get_node(self, node):
 		"""
@@ -716,3 +735,30 @@ class Graph:
 			sorted_nodes = [name for name, _ in sorted(self.nodes_dict.items(), key=lambda name_node: (-name_node[1].num_outward_edges, name_node[1].index))]
 			self._node_colour_indices = {name: index for index, name in enumerate(sorted_nodes)}
 		return self._node_colour_indices
+
+	@classmethod
+	def random(cls, num_nodes, cycle=False, connection_probability=0.5, ordering=True, direction='LR', palette=None):
+		"""
+		:param int num_nodes:
+		:param bool cycle:
+		:param float connection_probability:
+		:param bool ordering:
+		:param str direction:
+		:param palette:
+		:rtype: Graph
+		"""
+		graph = cls(strict=True, ordering=ordering, direction=direction, palette=palette)
+		connection_probability = min(1.0, max(0.0, connection_probability))
+		node_names = list(range(1, num_nodes + 1))
+		for n in node_names:
+			graph.add_node(name=str(n))
+
+		for n1 in node_names:
+			for n2 in node_names:
+				if random.uniform(0, 1) < connection_probability:
+					if cycle:
+						graph.connect(start=str(n1), end=str(n2))
+					elif n1 < n2:
+						graph.connect(start=str(n1), end=str(n2))
+
+		return graph
