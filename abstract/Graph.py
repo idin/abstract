@@ -3,27 +3,124 @@ from .Edge import Edge
 from .Style import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
+from .parse_indentations_function import parse_indentations
 
 import graphviz
 import warnings
 import os
-
+from copy import deepcopy
+from .Palette import Palette
 
 def draw_graph(*args, **kwargs):
 	return Graph(*args, **kwargs).render()
 
 
+
 class Graph:
-	def __init__(self, obj=None, strict=True, ordering=True):
+	def __init__(self, obj=None, strict=True, ordering=True, direction='LR', palette=None):
 		self._nodes_dict = {}
 		self._is_strict = strict
 		self._ordering = ordering
-		self._node_styles = {'default': NodeStyle(name='default')}
-		self._edge_styles = {'default': EdgeStyle(name='default')}
+		self._node_colour_indices = None
+
+		if palette is None:
+			self._palette = Palette(
+				hue=[0, 1], saturation=[0.66, 0.66], luminosity=[0.5, 0.5], num_levels=6
+			)
+
+		else:
+			self._palette = palette
+
+		self._node_styles = {
+			'default': [
+				NodeStyle(
+					name=self._palette.get_hex(index=index),
+					text_colour=self._palette.get_hex(index=index, l=0.2, s=0.7),
+					fill_colour=self._palette.get_hex(index=index, l=0.98, s=0.1),
+					colour=self._palette.get_hex(index=index, l=0.5, s=0.35) + '66'
+				)
+				for index in range(self._palette.num_levels)
+			],
+			'dark': [
+				NodeStyle(
+					name=self._palette.get_hex(index=index),
+					text_colour=self._palette.get_hex(index=index, l=1),
+					fill_colour=self._palette.get_hex(index=index, l=0.4, s=0.2),
+					colour=self._palette.get_hex(index=index, l=0.5) + '66'
+				)
+				for index in range(self._palette.num_levels)
+			]
+		}
+		self._edge_styles = {
+			'default': [
+				EdgeStyle(
+					name=self._palette.get_hex(index=index),
+					colour=self._palette.get_hex(index=index, l=0.5, s=0.35) + '66'
+				)
+				for index in range(self._palette.num_levels)
+			]
+		}
+
+
+		self._node_counter = 0
+		self._node_styles_counter = 0
+		self._edge_styles_counter = 0
 		self._nodes_have_graph = True
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 		if obj:
 			self.append(obj=obj)
+		self._direction = direction
+
+	def copy(self):
+		return deepcopy(self)
+
+	def filter(self, nodes=None, direction='to_and_from', filter_type='include'):
+		"""
+		:param list[str] or list[Node] nodes:
+		:param str direction:
+		:rtype Graph
+		"""
+		nodes = nodes or []
+		relatives = {}
+		for x in nodes:
+			node = self.get_node(node=x)
+			name = node.name
+			relatives[name] = 1
+			if direction == 'to' or 'to_and_from':
+				for ancestor in node.ancestors:
+					relatives[ancestor.name] = 1
+
+			if direction == 'from' or 'to_and_from':
+				for descendant in node.descendants:
+					relatives[descendant.name] = 1
+
+		if filter_type == 'include':
+			to_delete = [name for name in self.nodes_dict.keys() if name not in relatives]
+		else:
+			to_delete = relatives.keys()
+
+		new_graph = self.copy()
+		for name in to_delete:
+			new_graph.remove_node(node=name)
+		return new_graph
+
+	def get_node_style(self, style_name, number=None, node_name=None):
+		styles = self._node_styles[style_name]
+		if isinstance(styles, NodeStyle):
+			return styles
+		else:
+			if number is None:
+				number = self.node_colour_indices[node_name]
+			return styles[number % len(styles)]
+
+	def get_edge_style(self, style_name, number=None, node_name=None):
+		styles = self._edge_styles[style_name]
+		if isinstance(styles, EdgeStyle):
+			return styles
+		else:
+			if number is None:
+				number = self.node_colour_indices[node_name]
+			return styles[number % len(styles)]
 
 	def __getstate__(self):
 		return {
@@ -31,7 +128,12 @@ class Graph:
 			'is_strict': self._is_strict,
 			'ordering': self._ordering,
 			'node_styles': self._node_styles,
-			'edge_styles': self._edge_styles
+			'edge_styles': self._edge_styles,
+			'node_counter': self._node_counter,
+			'node_styles_counter': self._node_styles_counter,
+			'edge_styles_counter': self._edge_styles_counter,
+			'node_colour_indices': self._node_colour_indices,
+			'direction': self._direction
 		}
 
 	def __setstate__(self, state):
@@ -41,6 +143,11 @@ class Graph:
 		self._node_styles = state['node_styles']
 		self._edge_styles = state['edge_styles']
 		self._nodes_have_graph = False
+		self._node_counter = state['node_counter']
+		self._node_styles_counter= state['node_styles_counter']
+		self._edge_styles_counter = state['edge_styles_counter']
+		self._node_colour_indices = state['node_colour_indices']
+		self._direction = state['direction']
 		self.update_nodes()
 
 	def __contains__(self, item):
@@ -90,8 +197,7 @@ class Graph:
 			tree_strings.append(tree_string)
 		return '\n'.join(tree_strings)
 
-	@property
-	def _graphviz_header(self):
+	def get_graphviz_header(self, direction=None):
 		if self._is_strict:
 			first_part = 'strict digraph G {\n'
 		else:
@@ -101,21 +207,29 @@ class Graph:
 			second_part = ''
 		else:
 			second_part = '\tordering=out;\n'
-		return first_part+second_part
 
-	def get_graphviz_str(self):
+		direction = direction or self._direction
+		direction = direction.upper()
+		if direction != 'TB':
+			third_part = f'\trankdir="{direction}"'
+		else:
+			third_part = ''
+
+		return first_part + second_part + third_part
+
+	def get_graphviz_str(self, direction=None):
 		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self.nodes_dict.values()]) + '\n\t}\n'
 		edges_str = '\t' + '\n\t'.join([edge.get_graphviz_str() for edge in self.edges]) + '\n'
-		return self._graphviz_header + nodes_str + edges_str + '}'
+		return self.get_graphviz_header(direction=direction) + nodes_str + edges_str + '}'
 
-	def render(self, path=None, view=True):
+	def render(self, path=None, view=True, direction=None):
 
 		if path is None:
-			return graphviz.Source(source=self.get_graphviz_str())
+			return graphviz.Source(source=self.get_graphviz_str(direction=direction))
 		else:
 			filename, file_extension = os.path.splitext(path)
 			output_format = file_extension.lstrip('.')
-			source = graphviz.Source(source=self.get_graphviz_str(), format=output_format)
+			source = graphviz.Source(source=self.get_graphviz_str(direction=direction), format=output_format)
 			return source.render(filename=filename, view=view)
 
 	draw = render
@@ -351,9 +465,17 @@ class Graph:
 			return node
 
 		else:
-			node = Node(name=name, graph=self, label=label, value=value, style=style, **kwargs)
+			node = Node(
+				name=name, graph=self, label=label, value=value,
+				style=style, index=self.get_node_index(), **kwargs
+			)
 			self.nodes_dict[name] = node
 			return node
+
+	def get_node_index(self):
+		index = self._node_counter
+		self._node_counter += 1
+		return index
 
 	def connect(self, start, end, id=None, label=None, value=None, style=None, if_edge_exists='warn', **kwargs):
 		"""
@@ -370,6 +492,9 @@ class Graph:
 		start = self.get_node(node=start)
 		end = self.get_node(node=end)
 		edge_id = (start.id, end.id, id)
+
+		# reset node colour indices:
+		self._node_colour_indices = None
 
 		if edge_id not in start.outward_edge_ids and edge_id not in end.inward_edge_ids:
 			edge = Edge(graph=self, start=start, end=end, id=id, value=value, label=label, style=style, **kwargs)
@@ -568,3 +693,26 @@ class Graph:
 		graph = cls()
 		graph.append(obj=obj)
 		return graph
+
+	@classmethod
+	def from_indented_text(cls, root, lines, indent=None):
+		graph = cls(strict=True)
+		graph.add_node(name='root', label=root)
+		lines = parse_indentations(lines, indent=indent)
+
+		for index, level, content, parent_index in lines:
+			graph.add_node(name=str(index), label=f'line {index}')
+
+			if parent_index is not None:
+				graph.connect(start=str(parent_index), end=str(index))
+			else:
+				graph.connect(start='root', end=str(index))
+
+		return graph
+
+	@property
+	def node_colour_indices(self):
+		if self._node_colour_indices is None:
+			sorted_nodes = [name for name, _ in sorted(self.nodes_dict.items(), key=lambda name_node: (-name_node[1].num_outward_edges, name_node[1].index))]
+			self._node_colour_indices = {name: index for index, name in enumerate(sorted_nodes)}
+		return self._node_colour_indices

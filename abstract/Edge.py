@@ -51,9 +51,9 @@ class Edge(GraphObj):
 		:rtype: EdgeStyle
 		"""
 		if self._style is None:
-			return self.graph._edge_styles['default']
+			return self.graph.get_edge_style(style_name='default', node_name=self.start.name)
 		elif isinstance(self._style, str):
-			return self.graph._edge_styles[self._style]
+			return self.graph.get_edge_style(style_name=self._style, node_name=self.start.name)
 		else:
 			raise TypeError(f'edge.style is of type {type(self._style)}')
 
@@ -137,8 +137,8 @@ class Edge(GraphObj):
 	def remove_self(self):
 		if self._start is None or self._end is None:
 			raise ValueError('Either start or end Node is missing!')
-
-		self.start.remove_outward_edge(edge=self)
-		self.end.remove_inward_edge(edge=self)
+		self.start.remove_outward_edge(edge_id=self.id)
+		self.end.remove_inward_edge(edge_id=self.id)
 		self._start = None
 		self._end = None
+

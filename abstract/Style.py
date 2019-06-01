@@ -89,7 +89,11 @@ class Style:
 		self.update(d, inplace=True)
 
 	def get_graphviz_str(self):
-		return ' '.join([f'{key}={value}' for key, value in self._dictionary.items() if value is not None])
+		key_values = [
+			(key.strip('"') if isinstance(key, str) else key, value.strip('"') if isinstance(value, str) else value)
+			for key, value in self._dictionary.items() if value is not None
+		]
+		return ' '.join([f'"{key}"="{value}"' for key, value in key_values])
 
 
 class EdgeStyle(Style):

@@ -9,7 +9,7 @@ VERTICAL = u'\u2502'
 
 
 class Node(GraphObj):
-	def __init__(self, graph, name, value=None, label=None, style=None, **kwargs):
+	def __init__(self, graph, name, value=None, label=None, style=None, index=0, **kwargs):
 		"""
 		:param .Graph.Graph graph: the graph this node belongs to
 		:param str name: name of the node (code friendly, no weird characters, etc.) it should be unique in the graph
@@ -23,12 +23,20 @@ class Node(GraphObj):
 		self._inward_edges_dict = dict()
 		self._outward_edges_have_start_node = True
 		self._inward_edges_have_end_node = True
+		self._index = index
+
+	@property
+	def index(self):
+		return self._index
+
+
 
 	def __getstate__(self):
 		state = super().__getstate__()
 		state.update({
 			'outward_edges_dict': self._outward_edges_dict,
-			'inward_edges_dict': self._inward_edges_dict
+			'inward_edges_dict': self._inward_edges_dict,
+			'index': self._index
 		})
 		return state
 
@@ -38,6 +46,7 @@ class Node(GraphObj):
 		self._inward_edges_dict = state['inward_edges_dict']
 		self._outward_edges_have_start_node = False
 		self._inward_edges_have_end_node = False
+		self._index = state['index']
 
 	def is_similar_to(self, other):
 		"""
@@ -66,9 +75,9 @@ class Node(GraphObj):
 		:rtype: NodeStyle
 		"""
 		if self._style is None:
-			return self.graph._node_styles['default']
+			return self.graph.get_node_style(style_name='default', node_name=self.name)
 		elif isinstance(self._style, str):
-			return self.graph._node_styles[self._style]
+			return self.graph.get_node_style(style_name=self._style, node_name=self.name)
 		else:
 			raise TypeError(f'{self}._style is of type {type(self._style)}')
 
@@ -91,7 +100,9 @@ class Node(GraphObj):
 
 			if the_style.name is None:
 				the_style._name = self.name
-			self.graph._node_styles[the_style.name] = the_style
+			if the_style.name not in self.graph._node_styles:
+				self.graph._node_styles[the_style.name] = []
+			self.graph._node_styles[the_style.name].append(the_style)
 			self._style = the_style.name
 
 	def update_edges(self):
@@ -144,11 +155,11 @@ class Node(GraphObj):
 		"""
 		self.inward_edges_dict[edge.id] = edge
 
-	def remove_outward_edge(self, edge):
-		del self.outward_edges_dict[edge.id]
+	def remove_outward_edge(self, edge_id):
+		del self.outward_edges_dict[edge_id]
 
-	def remove_inward_edge(self, edge):
-		del self.inward_edges_dict[edge.id]
+	def remove_inward_edge(self, edge_id):
+		del self.inward_edges_dict[edge_id]
 
 	@property
 	def label(self):
@@ -243,18 +254,18 @@ class Node(GraphObj):
 		return self.graph.has_children(node=self)
 
 	@property
-	def anscestors(self):
+	def ancestors(self):
 		"""
 		:rtype: list[Node]
 		"""
-		return self.graph._get_ancestors(node=self)
+		return self.graph._get_ancestors(node=self)[0]
 
 	@property
 	def descendants(self):
 		"""
 		:rtype: list[Node]
 		"""
-		return self.graph._get_descendants(node=self)
+		return self.graph._get_descendants(node=self)[0]
 
 	@property
 	def outward_edges(self):
@@ -287,7 +298,7 @@ class Node(GraphObj):
 		for edge in self.outward_edges_dict.values():
 			if edge not in result:
 				result.append(edge)
-		for edge in self.outward_edges_dict.values():
+		for edge in self.inward_edges_dict.values():
 			if edge not in result:
 				result.append(edge)
 		return result
@@ -295,3 +306,7 @@ class Node(GraphObj):
 	def remove_edges(self):
 		for edge in self.edges:
 			edge.remove_self()
+
+	@property
+	def num_outward_edges(self):
+		return len(self.outward_edges_dict)
