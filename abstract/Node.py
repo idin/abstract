@@ -29,8 +29,6 @@ class Node(GraphObj):
 	def index(self):
 		return self._index
 
-
-
 	def __getstate__(self):
 		state = super().__getstate__()
 		state.update({
@@ -310,3 +308,4 @@ class Node(GraphObj):
 	@property
 	def num_outward_edges(self):
 		return len(self.outward_edges_dict)
+

@@ -18,7 +18,7 @@ def draw_graph(*args, **kwargs):
 
 
 class Graph:
-	def __init__(self, obj=None, strict=True, ordering=True, direction='LR', palette=None):
+	def __init__(self, obj=None, strict=True, ordering=True, palette=None):
 		self._nodes_dict = {}
 		self._is_strict = strict
 		self._ordering = ordering
@@ -70,7 +70,6 @@ class Graph:
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 		if obj:
 			self.append(obj=obj)
-		self._direction = direction
 
 	def copy(self):
 		return deepcopy(self)
@@ -133,8 +132,7 @@ class Graph:
 			'node_counter': self._node_counter,
 			'node_styles_counter': self._node_styles_counter,
 			'edge_styles_counter': self._edge_styles_counter,
-			'node_colour_indices': self._node_colour_indices,
-			'direction': self._direction
+			'node_colour_indices': self._node_colour_indices
 		}
 
 	def __setstate__(self, state):
@@ -148,7 +146,6 @@ class Graph:
 		self._node_styles_counter= state['node_styles_counter']
 		self._edge_styles_counter = state['edge_styles_counter']
 		self._node_colour_indices = state['node_colour_indices']
-		self._direction = state['direction']
 		self.update_nodes()
 
 	def __contains__(self, item):
@@ -198,7 +195,7 @@ class Graph:
 			tree_strings.append(tree_string)
 		return '\n'.join(tree_strings)
 
-	def get_graphviz_header(self, direction=None, height=None, width=None, background_colour=None):
+	def get_graphviz_header(self, direction='LR', height=None, width=None, background_colour=None):
 		if self._is_strict:
 			first_part = 'strict digraph G {\n'
 		else:
@@ -221,7 +218,6 @@ class Graph:
 			second_part += f'\tsize="{width}!";\n'
 			second_part += '\tratio="fill";\n'
 
-		direction = direction or self._direction
 		direction = direction.upper()
 		if direction != 'TB':
 			third_part = f'\trankdir="{direction}"'
@@ -230,13 +226,13 @@ class Graph:
 
 		return first_part + second_part + third_part
 
-	def get_graphviz_str(self, direction=None, height=None, width=None, background_colour=None):
+	def get_graphviz_str(self, direction='LR', height=None, width=None, background_colour=None):
 		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self.nodes_dict.values()]) + '\n\t}\n'
 		edges_str = '\t' + '\n\t'.join([edge.get_graphviz_str() for edge in self.edges]) + '\n'
 		header = self.get_graphviz_header(direction=direction, height=height, width=width, background_colour=background_colour)
 		return header + nodes_str + edges_str + '}'
 
-	def render(self, path=None, view=True, direction=None, height=None, width=None, background_colour=None):
+	def render(self, path=None, view=True, direction='LR', height=None, width=None, background_colour=None):
 
 		if path is None:
 			return graphviz.Source(source=self.get_graphviz_str(direction=direction))
@@ -737,19 +733,18 @@ class Graph:
 		return self._node_colour_indices
 
 	@classmethod
-	def random(cls, num_nodes, cycle=False, connection_probability=0.5, ordering=True, direction='LR', palette=None):
+	def random(cls, num_nodes, cycle=False, start_index=1, connection_probability=0.5, ordering=True, palette=None):
 		"""
 		:param int num_nodes:
 		:param bool cycle:
 		:param float connection_probability:
 		:param bool ordering:
-		:param str direction:
 		:param palette:
 		:rtype: Graph
 		"""
-		graph = cls(strict=True, ordering=ordering, direction=direction, palette=palette)
+		graph = cls(strict=True, ordering=ordering, palette=palette)
 		connection_probability = min(1.0, max(0.0, connection_probability))
-		node_names = list(range(1, num_nodes + 1))
+		node_names = [i + start_index for i in range(num_nodes)]
 		for n in node_names:
 			graph.add_node(name=str(n))
 
@@ -762,3 +757,88 @@ class Graph:
 						graph.connect(start=str(n1), end=str(n2))
 
 		return graph
+
+	def __add__(self, other):
+		"""
+		:type other: Graph
+		:rtype: Graph
+		"""
+		return self.add(other=other)
+
+	def add(self, other, add_values_function=None):
+		"""
+		:type self: Graph
+		:type other: Graph
+		:type add_values_function: callable
+		:rtype: Graph
+		"""
+
+		d1 = self.__graph__()
+		d2 = other.__graph__()
+
+		node_styles = d1['node_styles']
+		node_styles.update(d2['node_styles'])
+
+		edge_styles = d1['edge_styles']
+		edge_styles.update(d2['edge_styles'])
+
+		if add_values_function is None:
+			def add_values_function(x, y):
+				if x is None or y is None:
+					return x or y
+				else:
+					return x + y
+
+		nodes = {}
+		for id in set(d1['nodes'].keys()).union(d2['nodes'].keys()):
+			if id in d1['nodes'] and id in d2['nodes']:
+				node1 = d1['nodes'][id]
+				node2 = d2['nodes'][id]
+				n = {}
+				for key in set(node1.keys()).union(node2.keys()):
+					if key in node1 and key in node2:
+						if key == 'value':
+							n[key] = add_values_function(node2[key], node2[key])
+						else:
+							n[key] = node1[key] or node2[key]
+					elif key in node1:
+						n[key] = node1[key]
+					else:
+						n[key] = node2[key]
+				nodes[id] = n
+			elif id in d1['nodes']:
+				nodes[id] = d1['nodes'][id]
+			else:
+				nodes[id] = d2['nodes'][id]
+
+		edges = {}
+		for edge2 in d1['edges'] + d2['edges']:
+			start2, end2, edge2_dict = edge2
+			id2 = edge2_dict['id']
+			if (start2, end2, id2) in edges:
+				edge1 = edges[(start2, end2, id2)]
+				edge1_dict = edge1[2]
+				for key in set(edge1_dict.keys()).union(set(edge2_dict.keys())):
+					if key in edge1_dict and key in edge2_dict:
+						if key == 'value':
+							edge1_dict[key] = add_values_function(edge1_dict[key], edge2_dict[key])
+						else:
+							edge1_dict[key] = edge1_dict[key] or edge2_dict[key]
+					elif key in edge2_dict:
+						edge1_dict[key] = edge2_dict[key]
+			else:
+				edges[(start2, end2, id2)] = start2, end2, edge2_dict
+		edges = edges.values()
+
+		result_representation = {
+			'strict': d1['strict'],
+			'ordering': d1['ordering'],
+			'node_styles': node_styles,
+			'edge_styles': edge_styles,
+			'nodes': nodes,
+			'edges': edges
+		}
+		result = self.__class__(obj=result_representation)
+
+		return result
+
