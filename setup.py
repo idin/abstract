@@ -8,7 +8,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
 	name='abstract',
-	version='0.1.5',
+	version='0.1.6',
 	license='MIT',
 	author='Idin',
 	author_email='py@idin.ca',
@@ -28,7 +28,7 @@ setup(
 	],
 
 	packages=find_packages(exclude=("jupyter_tests", ".idea", ".git")),
-	install_requires=['graphviz', 'base32hex'],
+	install_requires=['graphviz', 'base32hex', 'colouration'],
 	python_requires='~=3.6',
 	zip_safe=True,
 	test_suite='nose.collector',

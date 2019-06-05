@@ -1,4 +1,4 @@
-from .GraphObj import GraphObj
+from ._GraphObj import GraphObj
 from .Style import NodeStyle
 
 
@@ -28,6 +28,8 @@ class Node(GraphObj):
 	@property
 	def index(self):
 		return self._index
+
+
 
 	def __getstate__(self):
 		state = super().__getstate__()
@@ -162,7 +164,7 @@ class Node(GraphObj):
 	@property
 	def label(self):
 		if self._label:
-			result = str(self._label)
+			result = str(self.raw_label)
 		else:
 			result = str(self.id)
 		return result.replace('"', '\\"')
@@ -308,4 +310,3 @@ class Node(GraphObj):
 	@property
 	def num_outward_edges(self):
 		return len(self.outward_edges_dict)
-

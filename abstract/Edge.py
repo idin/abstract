@@ -1,4 +1,4 @@
-from .GraphObj import GraphObj
+from ._GraphObj import GraphObj
 from .Style import EdgeStyle
 from .Node import Node
 
@@ -17,7 +17,7 @@ class Edge(GraphObj):
 		super().__init__(graph=graph, id=None, value=value, label=label, style=style, **kwargs)
 		self._start = start
 		self._end = end
-		self._id = id
+		self.raw_id = id
 		start.append_outward_edge(edge=self)
 		end.append_inward_edge(edge=self)
 
@@ -28,14 +28,14 @@ class Edge(GraphObj):
 		"""
 		if not super().is_similar_to(other=other):
 			return False
-		return self._start._id == other._start._id and self._end._id == other._end._id and self._id == other._id
+		return self._start.id == other._start.id and self._end.id == other._end.id and self.raw_id == other.raw_id
 
 	def __getstate__(self):
 		state = super().__getstate__()
 		state.update({
 			'start': None,
 			'end': None,
-			'id': self._id
+			'id': self.raw_id
 		})
 		return state
 
@@ -43,7 +43,7 @@ class Edge(GraphObj):
 		super().__setstate__(state=state)
 		self._start = state['start']
 		self._end = state['end']
-		self._id = state['id']
+		self.raw_id = state['id']
 
 	@property
 	def style(self):
@@ -83,7 +83,7 @@ class Edge(GraphObj):
 		elif self._end is None:
 			raise ValueError('This Edge does not have an end!')
 
-		return self.start.id, self.end.id, self._id
+		return self.start.id, self.end.id, self.raw_id
 
 	def __str__(self):
 		return f'Edge:{self.start}-{self.end}'

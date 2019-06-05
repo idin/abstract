@@ -11,7 +11,7 @@ def make_hash_sha256(obj):
 class GraphObj:
 	def __init__(self, graph, id, value=None, label=None, style=None, **kwargs):
 		self._graph = graph
-		self._id = id
+		self._raw_id = id
 		self._value = value
 		self._label = label
 		self._style = None
@@ -22,7 +22,7 @@ class GraphObj:
 	def __getstate__(self):
 		return {
 			'graph': None,
-			'id': self._id,
+			'id': self.raw_id,
 			'value': self._value,
 			'label': self._label,
 			'style': self._style,
@@ -32,7 +32,7 @@ class GraphObj:
 
 	def __setstate__(self, state):
 		self._graph = state['graph']
-		self._id = state['id']
+		self._raw_id = state['id']
 		self._value = state['value']
 		self._label = state['label']
 		self._style = state['style']
@@ -57,7 +57,15 @@ class GraphObj:
 
 	@property
 	def id(self):
-		return self._id
+		return self.raw_id
+
+	@property
+	def raw_id(self):
+		return self._raw_id
+
+	@raw_id.setter
+	def raw_id(self, raw_id):
+		self._raw_id = raw_id
 
 	def __hash__(self):
 		return make_hash_sha256((self._graph.__hash__(), self.id)).__hash__()
@@ -83,8 +91,12 @@ class GraphObj:
 		self._value = value
 
 	@property
-	def label(self):
+	def raw_label(self):
 		return self._label
+
+	@property
+	def label(self):
+		return self.raw_label
 
 	@label.setter
 	def label(self, label):
@@ -117,11 +129,11 @@ class GraphObj:
 			raise TypeError(f'"{other}" is of type: {type(other)}')
 		if self.graph != other.graph:
 			raise ValueError('two GraphObj from different graphs cannot be compared')
-		return self._id != other._id
+		return self.raw_id != other.raw_id
 
 	def is_similar_to(self, other):
 		"""
 		:type other: GraphObj
 		:rtype: bool
 		"""
-		return self._id == other._id and self._value == other._value and self._style == other._style and self._parameters == other._parameters
+		return self.id == other.id and self._value == other._value and self._style == other._style and self._parameters == other._parameters
