@@ -1,16 +1,12 @@
 from .Node import Node
 from .Edge import Edge
-from .Style import NodeStyle, EdgeStyle
+from .graph_style.GraphObjStyle import NodeStyle, EdgeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 from .parse_indentations_function import parse_indentations
 
 import warnings
 from copy import deepcopy
-import random
-
-
-
 
 
 class BasicGraph:
@@ -494,12 +490,6 @@ class BasicGraph:
 		return True
 
 	@classmethod
-	def from_dict(cls, obj):
-		graph = cls()
-		graph.append(obj=obj)
-		return graph
-
-	@classmethod
 	def from_indented_text(cls, root, lines, indent=None):
 		graph = cls(strict=True)
 		graph.add_node(name='root', label=root)
@@ -514,139 +504,3 @@ class BasicGraph:
 				graph.connect(start='root', end=str(index))
 
 		return graph
-
-	@property
-	def node_colour_indices(self):
-		if self._node_colour_indices is None:
-			sorted_nodes = [
-				name for name, _ in sorted(
-					self.nodes_dict.items(),
-					key=lambda name_node: (-name_node[1].num_outward_edges, name_node[1].index)
-				)
-			]
-			self._node_colour_indices = {name: index for index, name in enumerate(sorted_nodes)}
-		return self._node_colour_indices
-
-	@classmethod
-	def random(
-			cls, num_nodes, cycle=False, start_index=1, connection_probability=0.5,
-			ordering=True,
-	):
-		"""
-		:param int num_nodes:
-		:param bool cycle:
-		:param int start_index:
-		:param float connection_probability:
-		:param bool ordering:
-		:param colour_scheme:
-		:rtype: BasicGraph
-		"""
-		graph = cls(strict=True, ordering=ordering)
-		connection_probability = min(1.0, max(0.0, connection_probability))
-		node_names = [i + start_index for i in range(num_nodes)]
-		for n in node_names:
-			graph.add_node(name=str(n))
-
-		for n1 in node_names:
-			for n2 in node_names:
-				if random.uniform(0, 1) < connection_probability:
-					if cycle:
-						graph.connect(start=str(n1), end=str(n2))
-					elif n1 < n2:
-						graph.connect(start=str(n1), end=str(n2))
-
-		return graph
-
-	def __add__(self, other):
-		"""
-		:type other: BasicGraph
-		:rtype: BasicGraph
-		"""
-		if self._colour_scheme is None:
-			colour_scheme = other._colour_scheme
-		elif other._colour_scheme is None:
-			colour_scheme = self._colour_scheme
-		elif self._colour_scheme.num_colours >= other._colour_scheme.num_colours:
-			colour_scheme = self._colour_scheme
-		else:
-			colour_scheme = other._colour_scheme
-
-
-		return self.add(other=other, colour_scheme=colour_scheme)
-
-	def add(self, other, colour_scheme=None, add_values_function=None):
-		"""
-		:type self: BasicGraph
-		:type other: BasicGraph
-		:type add_values_function: callable
-		:rtype: BasicGraph
-		"""
-
-		d1 = self.__graph__()
-		d2 = other.__graph__()
-
-		node_styles = d1['node_styles']
-		node_styles.update(d2['node_styles'])
-
-		edge_styles = d1['edge_styles']
-		edge_styles.update(d2['edge_styles'])
-
-		if add_values_function is None:
-			def add_values_function(x, y):
-				if x is None or y is None:
-					return x or y
-				else:
-					return x + y
-
-		nodes = {}
-		for id in set(d1['nodes'].keys()).union(d2['nodes'].keys()):
-			if id in d1['nodes'] and id in d2['nodes']:
-				node1 = d1['nodes'][id]
-				node2 = d2['nodes'][id]
-				n = {}
-				for key in set(node1.keys()).union(node2.keys()):
-					if key in node1 and key in node2:
-						if key == 'value':
-							n[key] = add_values_function(node2[key], node2[key])
-						else:
-							n[key] = node1[key] or node2[key]
-					elif key in node1:
-						n[key] = node1[key]
-					else:
-						n[key] = node2[key]
-				nodes[id] = n
-			elif id in d1['nodes']:
-				nodes[id] = d1['nodes'][id]
-			else:
-				nodes[id] = d2['nodes'][id]
-
-		edges = {}
-		for edge2 in d1['edges'] + d2['edges']:
-			start2, end2, edge2_dict = edge2
-			id2 = edge2_dict['id']
-			if (start2, end2, id2) in edges:
-				edge1 = edges[(start2, end2, id2)]
-				edge1_dict = edge1[2]
-				for key in set(edge1_dict.keys()).union(set(edge2_dict.keys())):
-					if key in edge1_dict and key in edge2_dict:
-						if key == 'value':
-							edge1_dict[key] = add_values_function(edge1_dict[key], edge2_dict[key])
-						else:
-							edge1_dict[key] = edge1_dict[key] or edge2_dict[key]
-					elif key in edge2_dict:
-						edge1_dict[key] = edge2_dict[key]
-			else:
-				edges[(start2, end2, id2)] = start2, end2, edge2_dict
-		edges = edges.values()
-
-		result_representation = {
-			'strict': d1['strict'],
-			'ordering': d1['ordering'],
-			'node_styles': node_styles,
-			'edge_styles': edge_styles,
-			'nodes': nodes,
-			'edges': edges
-		}
-		result = self.__class__(obj=result_representation)
-
-		return result

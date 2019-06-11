@@ -1,5 +1,5 @@
 from ._GraphObj import GraphObj
-from .Style import NodeStyle
+from .graph_style.GraphObjStyle import NodeStyle
 
 
 CORNER = u'\u2514'
@@ -28,8 +28,6 @@ class Node(GraphObj):
 	@property
 	def index(self):
 		return self._index
-
-
 
 	def __getstate__(self):
 		state = super().__getstate__()
@@ -75,9 +73,9 @@ class Node(GraphObj):
 		:rtype: NodeStyle
 		"""
 		if self._style is None:
-			return self.graph.get_node_style(style_name='default', node_name=self.name)
+			return self.graph.style.get_node_style(style_name='default', node_name=self.name)
 		elif isinstance(self._style, str):
-			return self.graph.get_node_style(style_name=self._style, node_name=self.name)
+			return self.graph.style.get_node_style(style_name=self._style, node_name=self.name)
 		else:
 			raise TypeError(f'{self}._style is of type {type(self._style)}')
 
@@ -94,15 +92,16 @@ class Node(GraphObj):
 			elif isinstance(style, NodeStyle):
 				the_style = style.copy()
 			elif isinstance(style, str):
-				the_style = self.graph._node_styles[style]
+
+				the_style = self.graph.style.node_styles[style]
 			else:
 				raise TypeError(f'node.style is of type {type(style)}')
 
 			if the_style.name is None:
 				the_style._name = self.name
-			if the_style.name not in self.graph._node_styles:
-				self.graph._node_styles[the_style.name] = []
-			self.graph._node_styles[the_style.name].append(the_style)
+			if the_style.name not in self.graph.style.node_styles:
+				self.graph.style.node_styles[the_style.name] = []
+			self.graph.style.node_styles[the_style.name].append(the_style)
 			self._style = the_style.name
 
 	def update_edges(self):
@@ -258,14 +257,14 @@ class Node(GraphObj):
 		"""
 		:rtype: list[Node]
 		"""
-		return self.graph._get_ancestors(node=self)[0]
+		return self.graph.get_ancestors(node=self, distance=False)
 
 	@property
 	def descendants(self):
 		"""
 		:rtype: list[Node]
 		"""
-		return self.graph._get_descendants(node=self)[0]
+		return self.graph.get_descendants(node=self, distance=False)
 
 	@property
 	def outward_edges(self):

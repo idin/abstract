@@ -1,5 +1,5 @@
 from ._GraphObj import GraphObj
-from .Style import EdgeStyle
+from .graph_style.GraphObjStyle import EdgeStyle
 from .Node import Node
 
 
@@ -51,9 +51,9 @@ class Edge(GraphObj):
 		:rtype: EdgeStyle
 		"""
 		if self._style is None:
-			return self.graph.get_edge_style(style_name='default', node_name=self.start.name)
+			return self.graph.style.get_edge_style(style_name='default', node_name=self.start.name)
 		elif isinstance(self._style, str):
-			return self.graph.get_edge_style(style_name=self._style, node_name=self.start.name)
+			return self.graph.style.get_edge_style(style_name=self._style, node_name=self.start.name)
 		else:
 			raise TypeError(f'edge.style is of type {type(self._style)}')
 
@@ -67,13 +67,13 @@ class Edge(GraphObj):
 			elif isinstance(style, EdgeStyle):
 				the_style = style.copy()
 			elif isinstance(style, str):
-				the_style = self.graph._edge_styles[style]
+				the_style = self.graph.style.edge_styles[style]
 			else:
 				raise TypeError(f'edge.style is of type {type(style)}')
 
 			if the_style.name is None:
 				the_style._name = str(self.id)
-			self.graph._edge_styles[the_style.name] = the_style
+			self.graph.style.edge_styles[the_style.name] = the_style
 			self._style = the_style.name
 
 	@property

@@ -10,7 +10,7 @@ STYLE_RENAME = {
 }
 
 
-class Style:
+class GraphObjStyle:
 	def __init__(self, name=None, **kwargs):
 		self._name = name
 		self._dictionary = kwargs
@@ -44,14 +44,14 @@ class Style:
 
 	def __eq__(self, other):
 		"""
-		:type other: Style
+		:type other: GraphObjStyle
 		:rtype: bool
 		"""
 		return self._dictionary == other._dictionary and self._name == other._name
 
 	def __ne__(self, other):
 		"""
-		:type other: Style
+		:type other: GraphObjStyle
 		:rtype: bool
 		"""
 		return self._dictionary != other._dictionary and self._name == other._name
@@ -67,12 +67,12 @@ class Style:
 
 	def update(self, other, inplace=False):
 		"""
-		:param Style or dict other: another style or dictionary that would update this one
+		:param GraphObjStyle or dict other: another style or dictionary that would update this one
 		:param bool inplace: if this object should be updated or a new one created
-		:rtype: NoneType or Style
+		:rtype: NoneType or GraphObjStyle
 		"""
 		if inplace:
-			if isinstance(other, Style):
+			if isinstance(other, GraphObjStyle):
 				self._dictionary.update(other.dictionary)
 			elif isinstance(other, dict):
 				self._dictionary.update(other)
@@ -96,7 +96,7 @@ class Style:
 		return ' '.join([f'"{key}"="{value}"' for key, value in key_values])
 
 
-class EdgeStyle(Style):
+class EdgeStyle(GraphObjStyle):
 	def __init__(
 			self,
 			name=None,
@@ -111,7 +111,7 @@ class EdgeStyle(Style):
 		super().__init__(name=name, **kwargs)
 
 
-class NodeStyle(Style):
+class NodeStyle(GraphObjStyle):
 	def __init__(
 			self,
 			name=None,
