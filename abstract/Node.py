@@ -1,5 +1,5 @@
 from ._GraphObj import GraphObj
-from .graph_style.GraphObjStyle import NodeStyle
+from .graph_style.NodeStyle import NodeStyle
 
 
 CORNER = u'\u2514'
@@ -9,7 +9,10 @@ VERTICAL = u'\u2502'
 
 
 class Node(GraphObj):
-	def __init__(self, graph, name, value=None, label=None, style=None, index=0, **kwargs):
+	def __init__(
+			self, graph, name, value=None, label=None, style=None, index=0,
+			**kwargs
+	):
 		"""
 		:param .Graph.Graph graph: the graph this node belongs to
 		:param str name: name of the node (code friendly, no weird characters, etc.) it should be unique in the graph
@@ -18,12 +21,35 @@ class Node(GraphObj):
 		:param style:
 		:param kwargs:
 		"""
-		super().__init__(graph=graph, id=name, value=value, label=label, style=style, **kwargs)
+		style = style or NodeStyle()
+
+		super().__init__(
+			graph=graph, id=name, value=value, label=label, style=style,
+			# additional_styling_function=additional_styling_function,
+			**kwargs
+		)
 		self._outward_edges_dict = dict()
 		self._inward_edges_dict = dict()
 		self._outward_edges_have_start_node = True
 		self._inward_edges_have_end_node = True
 		self._index = index
+
+	@property
+	def style(self):
+		"""
+		:rtype: NodeStyle
+		"""
+		return self._style
+
+	@style.setter
+	def style(self, style):
+		"""
+		:type style: NodeStyle or dict
+		"""
+		if isinstance(style, dict):
+			style = NodeStyle(**style)
+		self._style = style
+		# self._style_is_native = style is not None
 
 	@property
 	def index(self):
@@ -66,43 +92,6 @@ class Node(GraphObj):
 			if not inward_edge.is_similar_to(other=other_inward_edge):
 				return False
 		return True
-
-	@property
-	def style(self):
-		"""
-		:rtype: NodeStyle
-		"""
-		if self._style is None:
-			return self.graph.style.get_node_style(style_name='default', node_name=self.name)
-		elif isinstance(self._style, str):
-			return self.graph.style.get_node_style(style_name=self._style, node_name=self.name)
-		else:
-			raise TypeError(f'{self}._style is of type {type(self._style)}')
-
-	@style.setter
-	def style(self, style):
-		"""
-		:type style: NodeStyle or NoneType or dict
-		"""
-		if style is None:
-			self._style = None
-		else:
-			if isinstance(style, dict):
-				the_style = NodeStyle(**style)
-			elif isinstance(style, NodeStyle):
-				the_style = style.copy()
-			elif isinstance(style, str):
-
-				the_style = self.graph.style.node_styles[style]
-			else:
-				raise TypeError(f'node.style is of type {type(style)}')
-
-			if the_style.name is None:
-				the_style._name = self.name
-			if the_style.name not in self.graph.style.node_styles:
-				self.graph.style.node_styles[the_style.name] = []
-			self.graph.style.node_styles[the_style.name].append(the_style)
-			self._style = the_style.name
 
 	def update_edges(self):
 		if not self._outward_edges_have_start_node:
@@ -178,6 +167,48 @@ class Node(GraphObj):
 	def __repr__(self):
 		return str(self)
 
+	def __lt__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) < (other.index, other.name)
+
+	def __gt__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) > (other.index, other.name)
+
+	def __le__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) <= (other.index, other.name)
+
+	def __ge__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) >= (other.index, other.name)
+
+	def __eq__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) == (other.index, other.name)
+
+	def __ne__(self, other):
+		"""
+		:type other: Node
+		:rtype: bool
+		"""
+		return (self.index, self.name) != (other.index, other.name)
+
 	def get_tree_str(self, indentation='', already_added=None):
 		"""
 		:rtype: str
@@ -213,10 +244,13 @@ class Node(GraphObj):
 		"""
 		:rtype: str
 		"""
-		if self.style is None:
-			return f'"{self.id}" [label="{self.label}" '
+		style = self.style
+
+		if style is None:
+			return f'"{self.id}" [label="{self.label}"]'
+
 		else:
-			return f'"{self.id}" [label="{self.label}" ' + self.style.get_graphviz_str() + ']'
+			return f'"{self.id}" [label="{self.label}" ' + style.get_graphviz_str() + ']'
 
 	def connect_to(self, node, **kwargs):
 		"""
@@ -242,6 +276,17 @@ class Node(GraphObj):
 	def has_parents(self):
 		return self.graph.get_parents(node=self)
 
+	def get_child_rank(self, parent):
+		"""
+		returns the rank of this node in terms of its index relative to its siblings, rank starts from 0
+		:type parent: Node
+		:rtype: int
+		"""
+		siblings = parent.children
+		if self not in siblings:
+			ValueError(f'{self} is not a child of {parent}')
+		return sorted(siblings).index(self)
+
 	@property
 	def children(self):
 		"""
@@ -265,6 +310,13 @@ class Node(GraphObj):
 		:rtype: list[Node]
 		"""
 		return self.graph.get_descendants(node=self, distance=False)
+
+	@property
+	def num_descendants(self):
+		"""
+		:rtype: int
+		"""
+		return len(self.descendants)
 
 	@property
 	def outward_edges(self):
@@ -309,3 +361,12 @@ class Node(GraphObj):
 	@property
 	def num_outward_edges(self):
 		return len(self.outward_edges_dict)
+
+	def is_in_loop(self):
+		return self.graph.is_node_in_loop(node=self)
+
+	'''
+	@property
+	def graph_style(self):
+		return self.graph.node_style
+	'''

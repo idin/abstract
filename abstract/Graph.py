@@ -1,75 +1,179 @@
 from ._BasicGraph import BasicGraph
-from .graph_style.GraphStyle import GraphStyle, DEFAULT_BACKGROUND_COLOUR, DEFAULT_COLOUR_SCHEME
-
+from .graph_style.NodeStyle import NodeStyle
+from .graph_style.EdgeStyle import EdgeStyle
+from .graph_style.RootAndBranchStylist import RootAndBranchStylist
 import graphviz
 import os
 from functools import wraps
 import random
+from colouration import Colour
+
+DEFAULT_BACKGROUND_COLOUR_NAME = '#FAFAFA'
+
 
 
 def draw_graph(
-		obj, colour_scheme=None, strict=True, ordering=True, direction='LR',
-		path=None, height=None, width=None
+		obj, strict=True, ordering=True, direction='LR',
+		path=None, height=None, width=None, pad=None
 ):
-	graph = Graph(obj=obj, strict=strict, ordering=ordering)
+	graph = Graph(obj=obj, strict=strict, ordering=ordering, direction=direction)
 
 	return graph.render(
-		colour_scheme=colour_scheme, direction=direction,
-		path=path, height=height, width=width
+		path=path, height=height, width=width, pad=pad
 	)
 
 
 class Graph(BasicGraph):
-	def __init__(self, obj=None, strict=True, ordering=True):
+	def __init__(
+			self, obj=None, strict=True, ordering=True, node_style=None, edge_style=None,
+			colour_scheme=None, background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
+			font=None, node_shape=None, node_shape_style=None,
+			direction='LR', stylist=None
+	):
+		self._colour_scheme = None
+		self._background_colour = None
+		self._direction = direction
+		self.colour_scheme = colour_scheme
+		self.background_colour = background_colour
+
+		self._graph_node_style_overwrite = None
+		self._graph_edge_style_overwrite = None
+		self._node_style_overwrites = {}
+		self._edge_style_overwrites = {}
+		self._node_colour_overwrites = {}
+
+		if stylist is None:
+			stylist = RootAndBranchStylist(
+				colour_scheme=colour_scheme, node_style=node_style, font=font, node_shape=node_shape,
+				node_shape_style=node_shape_style, edge_style=edge_style
+			)
+
+		self._stylist = stylist
+
 		super().__init__(strict=strict, ordering=ordering)
-		self._style = GraphStyle(graph=self)
+
+		'''
+		self._node_style = node_style or (
+			lambda node: mix_node_style_of_parents(node=node, font=font, shape=node_shape, shape_style=node_shape_style)
+		)
+		self._edge_style = edge_style or (
+			lambda edge: inherit_edge_style_from_start(edge=edge, font=font)
+		)
+		'''
+
 		if obj:
 			self.append(obj=obj)
 
 	def __getstate__(self):
 		state = super().__getstate__()
-		state.update({'style': self._style})
+		state.update('_colou')
 		return state
+
+	def update_nodes(self):
+		if not self._nodes_have_graph:
+			for node in self._nodes_dict.values():
+				node._graph = self
+				node.update_edges()
+		self._nodes_have_graph = True
 
 	def __setstate__(self, state):
 		super().__setstate__(state=state)
-		self._style = state['style']
+		'''
+		self._node_style = state['node_style']
+		self._edge_style = state['edge_style']
+		'''
 		self._nodes_have_graph = False
 		self.update_nodes()
 
-	@property
-	def style(self):
-		"""
-		:rtype: GraphStyle
-		"""
-		return self._style
-
-	def reset_styles(self):
-		for node in self.nodes:
-			node.style = None
-			for edge in node.edges:
-				edge.style = None
-
 	@wraps(BasicGraph.connect)
-	def connect(self, **kwargs):
-		self.style.reset_node_colours()
-		super().connect(**kwargs)
+	def connect(self, start, end, style=None, **kwargs):
+		super().connect(start=start, end=end, style=style, **kwargs)
 
+	@wraps(BasicGraph.add_node)
+	def add_node(self, name, style=None, **kwargs):
+		super().add_node(name=name, style=style, **kwargs)
+
+	@wraps(BasicGraph.disconnect)
 	def disconnect(self, edge):
-		self.style.reset_node_colours()
 		super().disconnect(edge=edge)
 
-	def add_colour_scheme(self, name='default', colour_scheme=DEFAULT_COLOUR_SCHEME, background_colour=DEFAULT_BACKGROUND_COLOUR):
-		self.style.add_colours(name=name, colour_scheme=colour_scheme, background_colour=background_colour)
+	@property
+	def background_colour(self):
+		"""
+		:rtype: Colour
+		"""
+		return self._background_colour
 
-	def get_graphviz_header(self, direction='LR', height=None, width=None):
+	@background_colour.setter
+	def background_colour(self, background_colour):
+		"""
+		:type background_colour: Colour or str
+		"""
+		if not isinstance(background_colour, Colour):
+			background_colour = Colour(obj=background_colour)
+		self._background_colour = background_colour
+
+	@property
+	def node_styles(self):
+		"""
+		:rtype: dict[str, NodeStyle]
+		"""
+		return {name: node.style for name, node in self.nodes_dict.items() if node.has_style()}
+
+	@property
+	def edge_styles(self):
+		"""
+		:rtype: dict[str, EdgeStyle]
+		"""
+		return {edge.id: edge.style for node in self.nodes for edge in node.outward_edges if edge.has_style()}
+
+
+	def stylize(self):
+		if self._graph_node_style_overwrite is not None:
+			for node in self.nodes:
+				node.style = self._graph_node_style_overwrite
+
+		if self._graph_edge_style_overwrite is not None:
+			for edge in self.edges:
+				edge.style = self._graph_edge_style_overwrite
+
+		self._stylist.paint(graph=self)
+
+		for name, style in self._node_style_overwrites.items():
+			self.nodes_dict[name].style = style
+
+		for edge_id, style in self._edge_style_overwrites.items():
+			self.edges_dict[edge_id].style = style
+
+		for name, colour in self._node_colour_overwrites.items():
+			node = self.nodes_dict[name]
+			style = node.style.copy()
+			style.reset_colours()
+			style.colour = colour
+			node.style = style
+
+	def get_graphviz_header(self, dpi=300, direction=None, height=None, width=None, pad=None):
+		"""
+		:type direction: str or NoneType
+		:type height: float or int
+		:type width: float or int
+		:rtype: str
+		"""
+		direction = direction or self._direction
+
 		if self._is_strict:
 			first_part = 'strict digraph G {\n'
 		else:
 			first_part = 'digraph G{\n'
 
 		second_part = ''
-		second_part += f'\tbgcolor="{self.style.background_colour.hexadecimal}";\n'
+		if dpi is not None:
+			second_part += f'\tGraph [ dpi = {dpi} ];\n'
+
+		second_part += f'\tbgcolor="{self.background_colour.hexadecimal}";\n'
+
+		if pad is not None:
+			second_part += f'\tpad="{pad}";\n'
 
 		if not self._ordering:
 			second_part += '\tordering=out;\n'
@@ -92,13 +196,26 @@ class Graph(BasicGraph):
 
 		return first_part + second_part + third_part
 
-	def get_graphviz_str(self, direction='LR', height=None, width=None):
+	def get_graphviz_str(self, direction=None, dpi=300, height=None, width=None, pad=None):
+		"""
+		:type direction: str or NoneType
+		:type height: float or int
+		:type width: float or int
+		:rtype: str
+		"""
+		direction = direction or self._direction
+
 		nodes_str = '\t{\n\t\t' + '\n\t\t'.join([node.get_graphviz_str() for node in self.nodes_dict.values()]) + '\n\t}\n'
 		edges_str = '\t' + '\n\t'.join([edge.get_graphviz_str() for edge in self.edges]) + '\n'
-		header = self.get_graphviz_header(direction=direction, height=height, width=width)
+		header = self.get_graphviz_header(direction=direction, dpi=dpi, height=height, width=width, pad=pad)
 		return header + nodes_str + edges_str + '}'
 
 	def append(self, obj):
+		"""
+		adds nodes and edges from an object's __graph__() method which is essentially just a dictionary
+		:type obj: Object
+		:rtype: Graph
+		"""
 		try:
 			dictionary = obj.__graph__()
 		except AttributeError:
@@ -110,11 +227,11 @@ class Graph(BasicGraph):
 		if 'ordering' in dictionary:
 			self._ordering = dictionary['ordering']
 
-		if 'node_styles' in dictionary:
-			self.style.node_styles.update(dictionary['node_styles'])
+		if 'graph_node_style' in dictionary:
+			self._graph_node_style_overwrite = dictionary['graph_node_style']
 
-		if 'edge_styles' in dictionary:
-			self.style.edge_styles.update(dictionary['edge_styles'])
+		if 'graph_edge_style' in dictionary:
+			self._graph_edge_style_overwrite = dictionary['graph_edge_style']
 
 		for node_name, node_dict in dictionary['nodes'].items():
 			self.add_node(name=node_name, **node_dict)
@@ -134,15 +251,37 @@ class Graph(BasicGraph):
 			else:
 				raise ValueError('Too many objects in an edge definition!')
 
+		if 'node_styles' in dictionary:
+			for name, node_style in dictionary['node_styles'].items():
+				if node_style is not None:
+					self._node_style_overwrites[name] = node_style
+
+		edges_dict = self.edges_dict
+		if 'edge_styles' in dictionary:
+			for edge_id, edge_style in dictionary['edge_styles'].items():
+				if edge_style is not None:
+					self._edge_style_overwrites[edge_id] = edge_style
+
+		if 'node_colours' in dictionary:
+			for name, colour in dictionary['node_colours'].items():
+				self._node_colour_overwrites[name] = colour
+
 		return self
 
 	@classmethod
 	def from_dict(cls, obj):
+		"""
+		:param obj:
+		:rtype: Graph
+		"""
 		graph = cls()
 		graph.append(obj=obj)
 		return graph
 
 	def __graph__(self):
+		"""
+		:rtype: dict
+		"""
 		nodes_dict = {}
 		edges_list = []
 		for node in self.nodes:
@@ -167,43 +306,14 @@ class Graph(BasicGraph):
 		return {
 			'strict': self._is_strict,
 			'ordering': self._ordering,
-			'node_styles': self.style.node_styles,
-			'edge_styles': self.style.edge_styles,
+			'node_styles': self._node_style_overwrites,
+			'edge_styles': self._edge_style_overwrites,
+			'graph_node_style': self._graph_node_style_overwrite,
+			'graph_edge_style': self._graph_edge_style_overwrite,
+			'node_colours': self._node_colour_overwrites,
 			'nodes': nodes_dict,
 			'edges': edges_list
 		}
-
-	def is_similar_to(self, other):
-		"""
-		:type other: Graph
-		:rtype: bool
-		"""
-		if super().is_similar_to(other=other):
-			return False
-
-		if self.style != other.style:
-			return False
-
-		return True
-
-	def render(
-			self, path=None, view=True, direction='LR', height=None, width=None,
-			colour_scheme=None
-	):
-		self.add_colour_scheme(name='default', colour_scheme=colour_scheme)
-
-		if path is None:
-			return graphviz.Source(source=self.get_graphviz_str(direction=direction))
-		else:
-			filename, file_extension = os.path.splitext(path)
-			output_format = file_extension.lstrip('.')
-			graphviz_str = self.get_graphviz_str(direction=direction, height=height, width=width)
-			source = graphviz.Source(source=graphviz_str, format=output_format)
-			return source.render(filename=filename, view=view)
-
-	draw = render
-	display = render
-	visualize = render
 
 	@classmethod
 	def random(
@@ -211,6 +321,7 @@ class Graph(BasicGraph):
 			ordering=True,
 	):
 		"""
+		creates a random graph
 		:param int num_nodes:
 		:param bool cycle:
 		:param int start_index:
@@ -236,6 +347,7 @@ class Graph(BasicGraph):
 
 	def __add__(self, other):
 		"""
+		combines two graphs
 		:type other: Graph
 		:rtype: Graph
 		"""
@@ -243,6 +355,7 @@ class Graph(BasicGraph):
 
 	def add(self, other, add_values_function=None):
 		"""
+		combines two graphs
 		:type self: Graph
 		:type other: Graph
 		:type add_values_function: callable
@@ -317,3 +430,42 @@ class Graph(BasicGraph):
 		result = self.__class__(obj=result_representation)
 
 		return result
+
+	def render(
+			self, path=None, view=True, direction=None, height=None, width=None, dpi=300, pad=None
+	):
+		direction = direction or self._direction
+
+		self.stylize()
+
+		if path is None:
+			return graphviz.Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
+		else:
+			filename, file_extension = os.path.splitext(path)
+			output_format = file_extension.lstrip('.')
+			graphviz_str_to_save = self.get_graphviz_str(direction=direction, height=height, width=width, pad=pad)
+			to_save = graphviz.Source(source=graphviz_str_to_save, format=output_format)
+			to_save.render(filename=filename, view=view)
+			graphviz_str_to_display = graphviz.Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
+			return graphviz_str_to_display
+
+	def display(self, p=None, pad=0.2, direction=None, path=None, height=None, width=None, dpi=300):
+		try:
+			from IPython.core.display import display
+			display(self.render(
+				pad=pad, dpi=dpi, direction=direction or self._direction, path=path, height=height, width=width
+			))
+		except ImportError:
+			if p is not None:
+				p.pretty(self.get_tree_str())
+			else:
+				print(self.get_tree_str())
+
+	draw = display
+	visualize = display
+
+	def _repr_pretty_(self, p, cycle):
+		if cycle:
+			p.text('Graph')
+		else:
+			self.display(p=p)

@@ -1,6 +1,7 @@
 from .Node import Node
 from .Edge import Edge
-from .graph_style.GraphObjStyle import NodeStyle, EdgeStyle
+from .graph_style.EdgeStyle import EdgeStyle
+from .graph_style.NodeStyle import NodeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 from .parse_indentations_function import parse_indentations
@@ -18,15 +19,39 @@ class BasicGraph:
 		self._node_counter = 0
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 
+	_STATE_ATTRIBUTES = ['_nodes_dict', '_is_strict', '_ordering', '_node_counter']
+
+	#  for pickling and copying
+	def __getstate__(self):
+		state = {
+			attr: getattr(self, attr)
+			for attr in self._STATE_ATTRIBUTES
+		}
+		state['_nodes_have_graph'] = False
+		return state
+
+	#  for pickling and copying
+	def __setstate__(self, state):
+		for key, value in state.items():
+			setattr(self, key, value)
+		if not self._nodes_have_graph:
+			for node in self.nodes:
+				node._graph = self
+
+	# methods that return a new graph
 	def copy(self):
+		"""
+		:rtype: .Graph.Graph
+		"""
 		return deepcopy(self)
 
 	def filter(self, nodes=None, direction='to_and_from', filter_type='include'):
 		"""
+		filters nodes out or in and returns a new graph
 		:param list[str] or list[Node] nodes:f
 		:param str direction:
 		:param str filter_type: 'include' means only these nodes, 'exclude' means all nodes but these nodes
-		:rtype Graph
+		:rtype .Graph.Graph
 		"""
 		nodes = nodes or []
 		relatives = {}
@@ -52,29 +77,78 @@ class BasicGraph:
 			new_graph.remove_node(node=name)
 		return new_graph
 
-	def __getstate__(self):
-		return {
-			'nodes_dict': self.nodes_dict,
-			'is_strict': self._is_strict,
-			'ordering': self._ordering,
-			'node_counter': self._node_counter
-		}
+	@classmethod
+	def from_lists(cls, start, end, edge, strict=False):
+		"""
+		:param list[str] start: list of start nodes
+		:param list[str] end: list[str] list of end nodes
+		:param list[str] or list[NoneType] edge: list of edges
+		:param bool strict:
+		:type: .Graph.Graph
+		"""
+		graph = cls(strict=strict)
+		for index, start_name, end_name, edge_name in zip(range(len(start)), start, end, edge):
+			start_node = graph.add_node(name=start_name, if_node_exists='ignore')
+			end_node = graph.add_node(name=end_name, if_node_exists='ignore')
+			graph.connect(start=start_node, end=end_node, id=index, label=edge_name)
+		return graph
 
-	def __setstate__(self, state):
-		self._nodes_dict = state['nodes_dict']
-		self._is_strict = state['is_strict']
-		self._ordering = state['ordering']
-		self._node_counter = state['node_counter']
+	@classmethod
+	def from_object(cls, obj, strict=False, max_depth=None, max_height=None):
+		"""
+		:param obj: any object that has __children__() and __parents__() methods
+		:param bool strict:
+		:param int or NoneType max_depth: maximum depth for traveling through objects' children
+		:param int or NoneType max_height: maximum height for traveling through objuects' parents
+		:rtype: .Graph.Graph
+		"""
+		graph = cls(strict=strict)
+		graph.add_node(name=obj.__hash__(), label=str(obj))
+		descendants = get_descendants(obj=obj, distance=False, max_depth=max_depth)
+		ancestors = get_ancestors(obj=obj, distance=False, max_height=max_height)
 
+		obj_and_descendants = [obj] + descendants
+		for child in descendants:
+			for parent in child.__parents__():
+				if parent in obj_and_descendants:
+					graph.add_node(name=child.__hash__(), label=str(child))
+					graph.connect(start=parent.__hash__(), end=child.__hash__())
+
+		obj_and_ancestors = [obj] + ancestors
+		for parent in ancestors:
+			for child in parent.__children__():
+				if child in obj_and_ancestors:
+					graph.add_node(name=parent.__hash__(), label=str(parent))
+					graph.connect(start=parent.__hash__(), end=child.__hash__())
+
+		return graph
+
+	@classmethod
+	def from_indented_text(cls, root, lines, indent=None):
+		"""
+		converts texts into a graph
+		:param str root:
+		:param list[str] lines:
+		:param str or NoneType indent: used for parsing depth
+		:rtype: .Graph.Graph
+		"""
+		graph = cls(strict=True)
+		graph.add_node(name='root', label=root)
+		lines = parse_indentations(lines, indent=indent)
+
+		for index, level, content, parent_index in lines:
+			graph.add_node(name=str(index), label=f'line {index}')
+
+			if parent_index is not None:
+				graph.connect(start=str(parent_index), end=str(index))
+			else:
+				graph.connect(start='root', end=str(index))
+
+		return graph
+
+	# nodes
 	def __contains__(self, item):
 		return item in self._nodes_dict
-
-	def update_nodes(self):
-		if not self._nodes_have_graph:
-			for node in self._nodes_dict.values():
-				node._graph = self
-				node.update_edges()
-		self._nodes_have_graph = True
 
 	@property
 	def nodes_dict(self):
@@ -89,29 +163,6 @@ class BasicGraph:
 		:rtype: list[Node]
 		"""
 		return list(self.nodes_dict.values())
-
-	@property
-	def edges(self):
-		"""
-		:rtype: list[Edge]
-		"""
-		result = []
-		for node in self.nodes:
-			for edge in node.edges:
-				if edge not in result:
-					result.append(edge)
-		return result
-
-	def get_tree_str(self):
-		"""
-		:rtype: str
-		"""
-		already_added = []
-		tree_strings = []
-		for root in self.roots:
-			tree_string = root.get_tree_str(already_added=already_added)
-			tree_strings.append(tree_string)
-		return '\n'.join(tree_strings)
 
 	def get_node(self, node):
 		"""
@@ -132,6 +183,79 @@ class BasicGraph:
 			return self.nodes_dict[node].id
 		else:
 			return node.id
+
+	def generate_node_index(self):
+		index = self._node_counter
+		self._node_counter += 1
+		return index
+
+	def add_node(self, name, label=None, value=None, style=None, if_node_exists='warn', **kwargs):
+		"""
+		adds a node to the graph
+		:param str name: name of the new node
+		:param str or NoneType label: a label for the node
+		:param value: node value
+		:param NodeStyle or str style: style of the node
+		:param str if_node_exists: what to do if a node with that name exists. One of 'warn', 'error', 'ignore'
+		:param kwargs:
+		:rtype: Node
+		"""
+
+		if name in self.nodes_dict:
+
+			if if_node_exists == 'ignore':
+				pass
+			elif if_node_exists == 'warn':
+				warnings.warn(f'Warning! A node with name "{id}" already exists in graph!')
+			else:
+				raise KeyError(f'duplicate node id:"{id}"!')
+
+			node = self.get_node(node=name)
+			if style is not None:
+				node.style = style
+			if label is not None:
+				node.label = label
+			if value is not None:
+				node.value = value
+			return node
+
+		else:
+			node = Node(
+				name=name, graph=self, label=label, value=value,
+				style=style, index=self.generate_node_index(), **kwargs
+			)
+			self.nodes_dict[name] = node
+			return node
+
+	def remove_node(self, node):
+		"""
+		removes a node from the graph
+		:type node: Node or str
+		"""
+		node = self.get_node(node=node)
+		node.remove_edges()
+		node._graph = None
+		del self.nodes_dict[node.id]
+
+	# edges
+	@property
+	def edges_dict(self):
+		"""
+		:rtype: dict[tuple, Edge]
+		"""
+		return {edge.id: edge for node in self.nodes for edge in node.outward_edges}
+
+	@property
+	def edges(self):
+		"""
+		:rtype: list[Edge]
+		"""
+		result = []
+		for node in self.nodes:
+			for edge in node.edges:
+				if edge not in result:
+					result.append(edge)
+		return result
 
 	def get_outward_edges(self, node):
 		"""
@@ -163,16 +287,24 @@ class BasicGraph:
 		"""
 		return [inward_edge.start for inward_edge in self.get_inward_edges(node=node)]
 
+	def num_parents(self, node):
+		"""
+		:type node: Node or str
+		:rtype: int
+		"""
+		return len(self.get_parents(node=node))
+
 	def has_parents(self, node):
 		"""
 		:type node: Node or str
-		:rtype: Node
+		:rtype: bool
 		"""
-		return len(self.get_parents(node=node))
+		return self.num_parents(node=node) > 0
 
 	@property
 	def absolute_roots(self):
 		"""
+		returns nodes that have no parents
 		:rtype: list[Node]
 		"""
 		return [node for node in self.nodes if not node.has_parents()]
@@ -197,16 +329,24 @@ class BasicGraph:
 		"""
 		return [outward_edge.end for outward_edge in self.get_outward_edges(node=node)]
 
+	def num_children(self, node):
+		"""
+		:type node: Node or str
+		:rtype: int
+		"""
+		return len(self.get_children(node=node))
+
 	def has_children(self, node):
 		"""
 		:type node: Node or str
-		:rtype: Node
+		:rtype: bool
 		"""
-		return len(self.get_children(node=node))
+		return self.num_children(node=node) > 0
 
 	@property
 	def leaves(self):
 		"""
+		returns nodes that have no children
 		:rtype: list[Node]
 		"""
 		return [node for node in self.nodes if not node.has_children()]
@@ -241,6 +381,11 @@ class BasicGraph:
 			return ancestors, ancestors_dict
 
 	def get_ancestors(self, node, distance=True):
+		"""
+		:param Node or str node:
+		:param bool distance: if True, ancestors and their respective distance to the node will be returned as dict
+		:rtype: dict[int,list[Node]] or list[Node]
+		"""
 		ancestors, ancestors_dict = self._get_ancestors(node=node, nodes_travelled=None)
 		if distance:
 			return ancestors_dict
@@ -280,6 +425,11 @@ class BasicGraph:
 			return descendants, descendants_dict
 
 	def get_descendants(self, node, distance=True):
+		"""
+		:param Node or str node:
+		:param bool distance: if True, descendants and their respective distance to the node will be returned as dict
+		:rtype: dict[int,list[Node]] or list[Node]
+		"""
 		descendants, descendants_dict = self._get_descendants(node=node, nodes_travelled=None)
 		if distance:
 			return descendants_dict
@@ -300,6 +450,20 @@ class BasicGraph:
 					siblings.append(parents_child)
 		return siblings
 
+	def num_siblings(self, node):
+		"""
+		:type node: Node or str
+		:rtype: int
+		"""
+		return len(self.get_siblings(node=node))
+
+	def has_siblings(self, node):
+		"""
+		:type node: Node or str
+		:rtype: bool
+		"""
+		return self.num_siblings(node=node) > 0
+
 	def get_spouses(self, node):
 		"""
 		:type node: Node or str
@@ -314,47 +478,31 @@ class BasicGraph:
 					spouses.append(childs_parent)
 		return spouses
 
-	def add_node(self, name, label=None, value=None, style=None, if_node_exists='warn', **kwargs):
+	def num_spouses(self, node):
 		"""
-		:param str name: name of the new node
-		:param str or NoneType label: a label for the node
-		:param value: node value
-		:param NodeStyle or str style: style of the node
-		:param str if_node_exists: what to do if a node with that name exists. One of 'warn', 'error', 'ignore'
-		:param kwargs:
-		:rtype: Node
+		:type node: Node or str
+		:rtype: int
 		"""
+		return len(self.get_spouses(node=node))
 
-		if name in self.nodes_dict:
+	def has_spouses(self, node):
+		"""
+		:type node: Node or str
+		:rtype: bool
+		"""
+		return self.num_spouses(node=node) > 0
 
-			if if_node_exists == 'ignore':
-				pass
-			elif if_node_exists == 'warn':
-				warnings.warn(f'Warning! A node with name "{id}" already exists in graph!')
-			else:
-				raise KeyError(f'duplicate node id:"{id}"!')
-
-			node = self.get_node(node=name)
-			if style is not None:
-				node.style = style
-			if label is not None:
-				node.label = label
-			if value is not None:
-				node.value = value
-			return node
-
-		else:
-			node = Node(
-				name=name, graph=self, label=label, value=value,
-				style=style, index=self.get_node_index(), **kwargs
-			)
-			self.nodes_dict[name] = node
-			return node
-
-	def get_node_index(self):
-		index = self._node_counter
-		self._node_counter += 1
-		return index
+	def get_tree_str(self):
+		"""
+		returns a tree representation of the graph as a string
+ 		:rtype: str
+		"""
+		already_added = []
+		tree_strings = []
+		for root in self.roots:
+			tree_string = root.get_tree_str(already_added=already_added)
+			tree_strings.append(tree_string)
+		return '\n'.join(tree_strings)
 
 	def connect(self, start, end, id=None, label=None, value=None, style=None, if_edge_exists='warn', **kwargs):
 		"""
@@ -415,59 +563,7 @@ class BasicGraph:
 		edge._raw_id = (None, None, None)
 		edge._graph = None
 
-	def remove_node(self, node):
-		"""
-		:type node: Node or str
-		"""
-		node = self.get_node(node=node)
-		node.remove_edges()
-		node._graph = None
-		del self.nodes_dict[node.id]
-
-	@classmethod
-	def from_lists(
-			cls, start, end, edge,
-			strict=False
-	):
-		graph = cls(strict=strict)
-		for index, start_name, end_name, edge_name in zip(range(len(start)), start, end, edge):
-			start_node = graph.add_node(name=start_name, if_node_exists='ignore')
-			end_node = graph.add_node(name=end_name, if_node_exists='ignore')
-			graph.connect(start=start_node, end=end_node, id=index, label=edge_name)
-		return graph
-
-	@staticmethod
-	def get_object_descendants(obj, depth=None, _descendants=None):
-		_descendants = [] or _descendants
-		if depth is not None:
-			if depth == 0:
-				return []
-		result = obj.__children__()
-		return result
-
-	@classmethod
-	def from_object(cls, obj, strict=False, max_depth=None, max_height=None):
-		graph = cls(strict=strict)
-		graph.add_node(name=obj.__hash__(), label=str(obj))
-		descendants = get_descendants(obj=obj, distance=False, max_depth=max_depth)
-		ancestors = get_ancestors(obj=obj, distance=False, max_height=max_height)
-
-		obj_and_descendants = [obj] + descendants
-		for child in descendants:
-			for parent in child.__parents__():
-				if parent in obj_and_descendants:
-					graph.add_node(name=child.__hash__(), label=str(child))
-					graph.connect(start=parent.__hash__(), end=child.__hash__())
-
-		obj_and_ancestors = [obj] + ancestors
-		for parent in ancestors:
-			for child in parent.__children__():
-				if child in obj_and_ancestors:
-					graph.add_node(name=parent.__hash__(), label=str(parent))
-					graph.connect(start=parent.__hash__(), end=child.__hash__())
-
-		return graph
-
+	# similarity
 	def is_similar_to(self, other):
 		"""
 		:type other: BasicGraph
@@ -488,19 +584,3 @@ class BasicGraph:
 			return False
 
 		return True
-
-	@classmethod
-	def from_indented_text(cls, root, lines, indent=None):
-		graph = cls(strict=True)
-		graph.add_node(name='root', label=root)
-		lines = parse_indentations(lines, indent=indent)
-
-		for index, level, content, parent_index in lines:
-			graph.add_node(name=str(index), label=f'line {index}')
-
-			if parent_index is not None:
-				graph.connect(start=str(parent_index), end=str(index))
-			else:
-				graph.connect(start='root', end=str(index))
-
-		return graph

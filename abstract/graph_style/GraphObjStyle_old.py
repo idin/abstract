@@ -1,3 +1,6 @@
+from colouration import Colour
+
+
 STYLE_RENAME = {
 	'colour': 'color',
 	'fill_colour': 'fillcolor',
@@ -11,8 +14,9 @@ STYLE_RENAME = {
 
 
 class GraphObjStyle:
-	def __init__(self, name=None, **kwargs):
-		self._name = name
+	def __init__(self, name=None, opacity=None, **kwargs):
+		self._name = name,
+		self._opacity = opacity
 		self._dictionary = kwargs
 		self.update_dictionary_keys()
 
@@ -88,40 +92,32 @@ class GraphObjStyle:
 				d[new_key] = d.pop(old_key)
 		self.update(d, inplace=True)
 
+	def get(self, item):
+		if item in STYLE_RENAME:
+			item = STYLE_RENAME[item]
+		return self.dictionary[item]
+
+	@property
+	def colour(self):
+		return self.get(item='colour')
+
 	def get_graphviz_str(self):
-		key_values = [
-			(key.strip('"') if isinstance(key, str) else key, value.strip('"') if isinstance(value, str) else value)
-			for key, value in self._dictionary.items() if value is not None
-		]
+		"""
+		:return:
+		"""
+		key_values = []
+		for key, value in self._dictionary.items():
+			if isinstance(value, Colour):
+				value.use()
+				value = value.get_hexadecimal(opacity=self._opacity)
+
+			if isinstance(key, str):
+				key = key.strip('"')
+
+			if isinstance(value, str):
+				value = value.strip('"')
+
+			if value is not None:
+				key_values.append((key, value))
+
 		return ' '.join([f'"{key}"="{value}"' for key, value in key_values])
-
-
-class EdgeStyle(GraphObjStyle):
-	def __init__(
-			self,
-			name=None,
-			colour='darkseagreen3', arrow_size=0.5,
-			text_colour='darkseagreen4', font='helvetica', text_size=8,  # label_style='"above, sloped"',
-			**kwargs
-	):
-		kwargs.update({
-			'colour': colour, 'arrow_size': arrow_size,
-			'text_colour': text_colour, 'font': font, 'text_size': text_size,  # 'label_style': label_style
-		})
-		super().__init__(name=name, **kwargs)
-
-
-class NodeStyle(GraphObjStyle):
-	def __init__(
-			self,
-			name=None,
-			colour='gray80',
-			text_colour='deepskyblue2', text_size=10, font='helvetica',
-			fill_colour='gray95', shape='egg', style='filled',
-			**kwargs
-	):
-		kwargs.update({
-			'colour': colour, 'text_colour': text_colour, 'fill_colour': fill_colour,
-			'text_size': text_size, 'font': font, 'shape': shape, 'style': style
-		})
-		super().__init__(name=name, **kwargs)

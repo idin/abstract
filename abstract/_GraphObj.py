@@ -9,15 +9,20 @@ def make_hash_sha256(obj):
 
 
 class GraphObj:
-	def __init__(self, graph, id, value=None, label=None, style=None, **kwargs):
+	def __init__(self, graph, id, value=None, label=None, style=None, additional_styling_function=None, **kwargs):
 		self._graph = graph
 		self._raw_id = id
 		self._value = value
 		self._label = label
-		self._style = None
+
 		self._frozen = False
 		self._parameters = dict(kwargs)
-		self.style = style
+
+		self._style = style
+		# self._style_is_native = False
+		# self._compiled_style = None
+		# self._additional_styling_function = additional_styling_function
+		# self.style = style
 
 	def __getstate__(self):
 		return {
@@ -136,4 +141,64 @@ class GraphObj:
 		:type other: GraphObj
 		:rtype: bool
 		"""
-		return self.id == other.id and self._value == other._value and self._style == other._style and self._parameters == other._parameters
+		condition_1 = self.id == other.id
+		condition_2 = self._value == other._value
+		condition_3 = self._style == other._style
+		condition_4 = self._parameters == other._parameters
+		return  condition_1 and condition_2 and condition_3 and condition_4
+
+	def has_style(self):
+		return self._style is not None
+
+	'''
+	def reset_style(self):
+		if not self._style_is_native:
+			self._style = None
+	'''
+
+	@property
+	def style(self):
+		raise RuntimeError('this parent function is just a placeholder')
+
+	@style.setter
+	def style(self, style):
+		raise RuntimeError('this parent function is just a placeholder')
+
+	@property
+	def graph_style(self):
+		# only a place holder, it returns self.graph.edge_style if self is an edge and self.graph.node_style otherwise
+		raise RuntimeError('this parent function is just a placeholder')
+
+	'''
+	@property
+	def __callable_style(self):
+		return self.style or self.graph_style
+
+	def is_style_callable(self):
+		return callable(self.__callable_style)
+
+	
+	@property
+	def compiled_style(self):
+		if self._compiled_style is None:
+			style = self.__callable_style
+			if callable(style):
+				style = style(self)
+			self.compiled_style = style.copy()
+		if self._additional_styling_function is None:
+			return self._compiled_style
+		else:
+			return self._additional_styling_function(self._compiled_style)
+
+	@compiled_style.setter
+	def compiled_style(self, style):
+
+		self._compiled_style = style
+		self._compiled_style.colour.use(log=self.id)
+
+	def add_additional_styling_function(self, function):
+		"""
+		:type function: callable
+		"""
+		self._additional_styling_function = function
+	'''

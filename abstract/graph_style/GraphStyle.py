@@ -1,8 +1,9 @@
-from abstract.graph_style.GraphObjStyle import NodeStyle, EdgeStyle
+from .NodeStyle import NodeStyle
+from .EdgeStyle import EdgeStyle
 
 from colouration import Scheme, Colour
 DEFAULT_BACKGROUND_COLOUR = '#FAFAFA'
-DEFAULT_COLOUR_SCHEME = 'pastel19'
+DEFAULT_COLOUR_SCHEME = 'pastel15'
 
 
 class GraphStyle:
@@ -51,39 +52,31 @@ class GraphStyle:
 		colour_scheme = Scheme.auto(obj=colour_scheme or DEFAULT_COLOUR_SCHEME)
 		self._background_colour = Colour.auto(obj=background_colour)
 		self._node_styles[name] = [
-			NodeStyle(
-				name=colour.name,
-				text_colour=colour.farthest_gray.hexadecimal,
-				fill_colour=colour.hexadecimal,
-				colour=colour.darken().get_hexadecimal(opacity=0.8)
-			)
+			create_node_colour_inheritance_style(colour=colour)
 			for colour in colour_scheme.colours
 		]
 		self._edge_styles[name] = [
-			EdgeStyle(
-				name=colour.name,
-				colour=colour.darken().get_hexadecimal(opacity=0.5)
-			)
+			inherit_colour_from_start_node
 			for colour in colour_scheme.colours
 		]
 
 	def get_node_style(self, style_name, number=None, node_name=None):
-		styles = self._node_styles[style_name]
-		if isinstance(styles, NodeStyle):
-			return styles
+		node_style = self._node_styles[style_name]
+		if isinstance(node_style, NodeStyle):
+			return node_style
 		else:
 			if number is None:
 				number = self.node_colour_indices[node_name]
-			return styles[number % len(styles)]
+			return node_style[number % len(node_style)]
 
 	def get_edge_style(self, style_name, number=None, node_name=None):
-		styles = self._edge_styles[style_name]
-		if isinstance(styles, EdgeStyle):
-			return styles
+		edge_style = self._edge_styles[style_name]
+		if isinstance(edge_style, EdgeStyle):
+			return edge_style
 		else:
 			if number is None:
 				number = self.node_colour_indices[node_name]
-			return styles[number % len(styles)]
+			return edge_style[number % len(edge_style)]
 
 	@property
 	def node_colour_indices(self):
@@ -124,9 +117,10 @@ class GraphStyle:
 		:type other: GraphStyle
 		:rtype: bool
 		"""
-		return self.edge_styles == other.edge_styles and \
-			   self.node_styles == other.node_styles and \
-			   self.background_colour == other.background_colour
+		condition_1 = self.edge_styles == other.edge_styles
+		condition_2 = self.node_styles == other.node_styles
+		condition_3 = self.background_colour == other.background_colour
+		return condition_1 and condition_2 and condition_3
 
 	def __ne__(self, other):
 		return not self.__eq__(other=other)

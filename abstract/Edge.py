@@ -1,10 +1,14 @@
 from ._GraphObj import GraphObj
-from .graph_style.GraphObjStyle import EdgeStyle
+from .graph_style.EdgeStyle import EdgeStyle
 from .Node import Node
 
 
 class Edge(GraphObj):
-	def __init__(self, graph, start, end, id=None, value=None, label=None, style=None, **kwargs):
+	def __init__(
+			self, graph, start, end, id=None, value=None, label=None, style=None,
+			additional_styling_function=None,
+			**kwargs
+	):
 		"""
 		:param Graph graph: a graph
 		:param Node start: start node
@@ -14,12 +18,35 @@ class Edge(GraphObj):
 		:param str label: a label to show
 		:param EdgeStyle or NoneType style: the style of the edge
 		"""
-		super().__init__(graph=graph, id=None, value=value, label=label, style=style, **kwargs)
+		style = style or EdgeStyle()
+
+		super().__init__(
+			graph=graph, id=None, value=value, label=label, style=style,
+			# additional_styling_function=additional_styling_function,
+			**kwargs
+		)
 		self._start = start
 		self._end = end
 		self.raw_id = id
 		start.append_outward_edge(edge=self)
 		end.append_inward_edge(edge=self)
+
+	@property
+	def style(self):
+		"""
+		:rtype: EdgeStyle
+		"""
+		return self._style
+
+	@style.setter
+	def style(self, style):
+		"""
+		:type style: EdgeStyle or dict
+		"""
+		if isinstance(style, dict):
+			style = EdgeStyle(**style)
+		self._style = style
+		self._style_is_native = style is not None
 
 	def is_similar_to(self, other):
 		"""
@@ -46,37 +73,6 @@ class Edge(GraphObj):
 		self.raw_id = state['id']
 
 	@property
-	def style(self):
-		"""
-		:rtype: EdgeStyle
-		"""
-		if self._style is None:
-			return self.graph.style.get_edge_style(style_name='default', node_name=self.start.name)
-		elif isinstance(self._style, str):
-			return self.graph.style.get_edge_style(style_name=self._style, node_name=self.start.name)
-		else:
-			raise TypeError(f'edge.style is of type {type(self._style)}')
-
-	@style.setter
-	def style(self, style):
-		if style is None:
-			self._style = None
-		else:
-			if isinstance(style, dict):
-				the_style = EdgeStyle(**style)
-			elif isinstance(style, EdgeStyle):
-				the_style = style.copy()
-			elif isinstance(style, str):
-				the_style = self.graph.style.edge_styles[style]
-			else:
-				raise TypeError(f'edge.style is of type {type(style)}')
-
-			if the_style.name is None:
-				the_style._name = str(self.id)
-			self.graph.style.edge_styles[the_style.name] = the_style
-			self._style = the_style.name
-
-	@property
 	def id(self):
 		if self._start is None:
 			raise ValueError('This Edge does not have a start!')
@@ -92,10 +88,11 @@ class Edge(GraphObj):
 		return str(self)
 
 	def get_graphviz_style_str(self):
-		if self.style is None:
+		style = self.style
+		if style is None:
 			return ''
 		else:
-			return self.style.get_graphviz_str()
+			return style.get_graphviz_str()
 
 	def get_graphviz_label_str(self):
 		if self.label_or_value is None:
@@ -142,3 +139,8 @@ class Edge(GraphObj):
 		self._start = None
 		self._end = None
 
+	'''
+	@property
+	def graph_style(self):
+		return self.graph.edge_style
+	'''
