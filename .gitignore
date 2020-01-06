@@ -6,3 +6,6 @@ abstract.egg-info/*
 build/*
 build
 dist
+abstract.egg-info
+dist
+build
