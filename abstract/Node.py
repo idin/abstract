@@ -367,9 +367,3 @@ class Node(GraphObj):
 
 	def is_in_loop_with(self, other):
 		return self.graph.are_nodes_in_same_loop(node1=self, node2=other)
-
-	'''
-	@property
-	def graph_style(self):
-		return self.graph.node_style
-	'''

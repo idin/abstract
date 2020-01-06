@@ -3,14 +3,7 @@ from .NodeStyle import NodeStyle
 from .EdgeStyle import EdgeStyle
 from .. import Node, Graph
 from colouration import Colour
-
-
-def is_root(node):
-	"""
-	:type node: Node
-	:rtype: bool
-	"""
-	return not node.has_parents()
+from .RootStylist import is_root_or_parents_are_in_loop
 
 
 def get_style(node, pale_ratio, divergence_ratio, main_style):
@@ -18,7 +11,7 @@ def get_style(node, pale_ratio, divergence_ratio, main_style):
 	:type node: Node
 	:rtype: NodeStyle
 	"""
-	if is_root(node):
+	if is_root_or_parents_are_in_loop(node):
 		if main_style is None:
 			return node.style.copy()
 		else:
@@ -87,7 +80,7 @@ class BranchNodeStylist(NodeStylist):
 		"""
 
 		for node in graph.nodes:
-			if not is_root(node) and not node.is_in_loop():
+			if not is_root_or_parents_are_in_loop(node) and not node.is_in_loop():
 				style = get_style(
 					node=node, pale_ratio=self._pale_ratio, divergence_ratio=self._divergence_ratio,
 					main_style=self._node_style

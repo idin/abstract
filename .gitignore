@@ -1,5 +1,8 @@
 
 \.idea/
 abstract.egg-info
+dist/*
+abstract.egg-info/*
+build/*
+build
 dist
-abstract.egg-info

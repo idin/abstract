@@ -206,9 +206,9 @@ class BasicGraph:
 			if if_node_exists == 'ignore':
 				pass
 			elif if_node_exists == 'warn':
-				warnings.warn(f'Warning! A node with name "{id}" already exists in graph!')
+				warnings.warn(f'Warning! A node with name "{name}" already exists in graph!')
 			else:
-				raise KeyError(f'duplicate node id:"{id}"!')
+				raise KeyError(f'duplicate node id:"{name}"!')
 
 			node = self.get_node(node=name)
 			if style is not None:

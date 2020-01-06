@@ -366,7 +366,7 @@ class Graph(BasicGraph):
 	@classmethod
 	def random(
 			cls, num_nodes, cycle=False, start_index=1, connection_probability=0.5,
-			ordering=True,
+			ordering=True, seed=None
 	):
 		"""
 		creates a random graph
@@ -383,6 +383,8 @@ class Graph(BasicGraph):
 		for n in node_names:
 			graph.add_node(name=str(n))
 
+		if seed is not None:
+			random.seed(seed)
 		for n1 in node_names:
 			for n2 in node_names:
 				if random.uniform(0, 1) < connection_probability:

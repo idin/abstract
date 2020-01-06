@@ -5,12 +5,13 @@ from colouration import Scheme
 DEFAULT_COLOUR_SCHEME = 'pastel15'
 
 
-def is_root(node):
+def is_root_or_parents_are_in_loop(node):
 	"""
 	:type node: Node
 	:rtype: bool
 	"""
-	return not node.has_parents()
+	parents = [parent for parent in node.parents if not parent.is_in_loop()]
+	return len(parents) == 0
 
 
 class RootStylist(NodeStylist):
@@ -29,7 +30,7 @@ class RootStylist(NodeStylist):
 		self._colour_scheme = colour_scheme
 		self._colours_used = {colour: 0 for colour in self._colour_scheme.colours}
 
-		super().__init__(style=None, condition=is_root)
+		super().__init__(style=None, condition=is_root_or_parents_are_in_loop)
 
 	def _get_least_used_colour(self, usage=1):
 		colour = min(self._colours_used, key=self._colours_used.get)
