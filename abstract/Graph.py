@@ -26,8 +26,10 @@ class Graph(BasicGraph):
 	def __init__(
 			self, obj=None, strict=True, ordering=True, node_style=None, edge_style=None,
 			colour_scheme=None, background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
-			font=None, node_shape=None, node_shape_style=None,
-			direction='LR', stylist=None
+			font='helvetica', node_shape=None, node_shape_style=None,
+			direction='LR', stylist=None, label='\nPowered by Abstract', label_url='https://pypi.org/project/abstract/',
+			label_location='bottom', font_size=10, label_colour='deepskyblue3', label_background_colour=None,
+			**kwargs
 	):
 
 		self._background_colour = None
@@ -40,6 +42,15 @@ class Graph(BasicGraph):
 		self._edge_style_overwrites = {}
 		self._node_colour_overwrites = {}
 		self._edge_colour_overwrites = {}
+		self._label = label
+		self._label_location = label_location
+		self._label_colour = label_colour
+		self._label_url = label_url
+		self._label_background_colour = label_background_colour
+
+		self._font = font
+		self._font_size = font_size
+		self._kwargs = kwargs
 
 		if isinstance(obj, self.__class__):
 			colour_scheme_2 = obj._colour_scheme
@@ -191,8 +202,42 @@ class Graph(BasicGraph):
 			first_part = 'digraph G{\n'
 
 		second_part = ''
+
+		attributes = {}
+		if self._label is not None:
+			if self._label.startswith('<') and self._label.endswith('>'):
+				attributes['label'] = f'{self._label}'
+			else:
+				if self._label_background_colour is not None:
+					html = f'<table border="0" cellborder="0"><tr><td bgcolor="{self._label_background_colour}" title="{self._label}">{self._label} </td></tr></table>'
+					if self._label_location[0] == 't':
+						attributes['label'] = f'<{html}\n>'
+					else:
+						attributes['label'] = f'<\n{html}>'
+				else:
+					attributes['label'] = f'"{self._label}"'
+
+			if self._label_location is not None:
+				attributes['labelloc'] = f'"{self._label_location[0]}"'
+			if self._font_size is not None:
+				attributes['fontsize'] = f'{self._font_size}'
+			if self._font is not None:
+				attributes['fontname'] = f'"{self._font}"'
+			if self._label_colour is not None:
+				attributes['fontcolor'] = f'"{self._label_colour}"'
+			if self._label_url is not None:
+				attributes['href'] = f'"{self._label_url}"'
+				attributes['target'] = '"_blank"'
 		if dpi is not None:
-			second_part += f'\tGraph [ dpi = {dpi} ];\n'
+			attributes['dpi'] = f'{dpi}'
+		for key, value in self._kwargs.items():
+			if isinstance(value, int):
+				attributes[key] = value
+			else:
+				attributes[key] = f'"{value}"'
+
+		if len(attributes) > 0:
+			second_part += '\tGraph [' + ', '.join([f'{key} = {value}' for key, value in attributes.items()]) + ' ];\n'
 
 		second_part += f'\tbgcolor="{self.background_colour.hexadecimal}";\n'
 

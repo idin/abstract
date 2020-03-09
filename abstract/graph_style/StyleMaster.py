@@ -75,8 +75,3 @@ class StyleMaster:
 			return self.__class__(stylists=[stylist.copy() for stylist in self.stylists + other.stylists])
 		else:
 			return self.__class__(stylists=[stylist.copy() for stylist in self.stylists + [other]])
-
-
-
-
-

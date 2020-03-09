@@ -27,10 +27,14 @@ def get_style(node, pale_ratio, divergence_ratio, main_style):
 				)
 			else:
 				style = main_style
-			colour = style.colour.increase_hue(
-				amount=divergence_ratio * get_diverging_number(i=rank, n=num_siblings, reverse=False)
-			)
-			colour = colour.pale(ratio=pale_ratio)
+			if num_siblings == 0:
+				colour = style.colour.copy(keep_id=True)
+			else:
+				colour = style.colour.increase_hue(
+					amount=divergence_ratio * get_diverging_number(i=rank, n=num_siblings, reverse=False)
+				)
+			#colour = colour.pale(ratio=pale_ratio)
+			colour.saturation = colour.saturation * 3 / 4
 			new_style = style.copy()
 			new_style.reset_colours()
 			new_style.colour = colour
