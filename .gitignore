@@ -9,3 +9,5 @@ dist
 abstract.egg-info
 dist
 build
+*.lucy
+signature.lucy
