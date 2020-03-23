@@ -9,3 +9,4 @@ dist
 abstract.egg-info
 dist
 build
+*.lucy
