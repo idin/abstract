@@ -307,6 +307,12 @@ class Graph(BasicGraph):
 			if 'ordering' in dictionary:
 				self._ordering = dictionary['ordering']
 
+			if 'label' in dictionary:
+				self._label = '\n' + dictionary['label']
+
+			if 'label_url' in dictionary:
+				self._label_url = dictionary['label_url']
+
 			if 'graph_node_style' in dictionary:
 				self._graph_node_style_overwrite = dictionary['graph_node_style']
 
