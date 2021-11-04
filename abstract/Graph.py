@@ -2,7 +2,7 @@ from ._BasicGraph import BasicGraph
 from .graph_style.NodeStyle import NodeStyle
 from .graph_style.EdgeStyle import EdgeStyle
 from .graph_style.RootAndBranchStylist import RootAndBranchStylist
-import graphviz
+from graphviz import Source, Graph as GraphvizGraph, Digraph
 import os
 from functools import wraps
 import random
@@ -268,7 +268,7 @@ class Graph(BasicGraph):
 	def get_graphviz_str(self, direction=None, dpi=300, height=None, width=None, pad=None):
 		"""
 		:type direction: str or NoneType
-		:type dpi: int
+		:type dpi: int or NoneType
 		:type height: float or int or NoneType
 		:type width: float or int or NoneType
 		:type pad: int or float or NoneType
@@ -535,22 +535,83 @@ class Graph(BasicGraph):
 	def render(
 			self, path=None, view=True, direction=None, height=None, width=None, dpi=300, pad=None
 	):
+		"""
+		:type direction: NoneType or str
+		:type dpi: NoneType or int
+		:type height: NoneType of int or float
+		:type width: NoneType or int or float
+		:type pad: NoneType or int or float
+		:type output_format: str or NoneType
+		:rtype: Source
+		"""
 		direction = direction or self._direction
 
 		self.stylize()
 
 		if path is None:
-			return graphviz.Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
+			return self.get_graphviz_source(direction=direction, pad=pad, dpi=None)# Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
 		else:
 			filename, file_extension = os.path.splitext(path)
 			output_format = file_extension.lstrip('.')
-			graphviz_str_to_save = self.get_graphviz_str(direction=direction, height=height, width=width, pad=pad, dpi=dpi)
-			to_save = graphviz.Source(source=graphviz_str_to_save, format=output_format)
-			to_save.render(filename=filename, view=view)
-			graphviz_str_to_display = graphviz.Source(
-				source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None)
+			to_save = self.get_graphviz_source(
+				direction=direction, pad=pad, dpi=dpi, height=height, width=width, output_format=output_format
 			)
-			return graphviz_str_to_display
+			to_save.render(filename=filename, view=view)
+			return self.get_graphviz_source(direction=direction, pad=pad, dpi=None)
+
+	def get_svg(self, direction=None, pad=None, **kwargs):
+		"""
+		:type direction: NoneType or str
+		:type pad: NoneType or int or float
+		:rtype: str
+		"""
+		return self.render(direction=direction, pad=pad, **kwargs)._repr_svg_()
+
+	def get_html(self, direction=None, pad=None, **kwargs):
+		from IPython.core.display import HTML
+		return HTML(self.get_svg(direction=direction, pad=pad, **kwargs))
+
+	def display_html(self, direction=None, pad=None, echo_errors=False, **kwargs):
+		"""
+		:type direction: NoneType or str
+		:type pad: NoneType or int or float
+		:type echo_errors: bool
+		:rtype: str
+		"""
+		try:
+			return displayHTML(self.get_svg(direction=direction, pad=pad, **kwargs))
+		except Exception as e:
+			if echo_errors:
+				print('Could not use displayHTML!')
+				print(e)
+
+			html = self.get_html(direction=direction, pad=pad, **kwargs)
+			try:
+				return display(html)
+			except Exception as e:
+				if echo_errors:
+					print('Coult not use display!')
+					print(e)
+				from IPython.core.display import display as ipython_display
+				return ipython_display(html)
+
+	def get_graphviz_source(self, direction=None, dpi=300, height=None, width=None, pad=None, output_format=None):
+		"""
+		:type direction: NoneType or str
+		:type dpi: NoneType or int
+		:type height: NoneType of int or float
+		:type width: NoneType or int or float
+		:type pad: NoneType or int or float
+		:type output_format: str or NoneType
+		:rtype: Source
+		"""
+		if height is None and width is None:
+			return Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
+		else:
+			graphviz_str_to_save = self.get_graphviz_str(
+				direction=direction, height=height, width=width, pad=pad, dpi=dpi
+			)
+			return Source(source=graphviz_str_to_save, format=output_format)
 
 	def display(self, p=None, pad=0.2, direction=None, path=None, height=None, width=None, dpi=300):
 		try:
