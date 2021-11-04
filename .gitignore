@@ -13,3 +13,6 @@ build
 signature.lucy
 *.lucy
 *.lucy
+abstract/__pycache__
+abstract/graph_style/__pycache__
+.ipynb_checkpoints
