@@ -1,33 +1,25 @@
 from ._BasicGraph import BasicGraph
-from .graph_style.NodeStyle import NodeStyle
-from .graph_style.EdgeStyle import EdgeStyle
-from .graph_style.RootAndBranchStylist import RootAndBranchStylist
-from graphviz import Source, Graph as GraphvizGraph, Digraph
+from .styling.NodeStyle import NodeStyle
+from .styling.EdgeStyle import EdgeStyle
+from graphviz import Source
 import os
 from functools import wraps
 import random
 from colouration import Colour
+from .styling import stylize_with_pensieve, stylize_randomly
+
 
 DEFAULT_BACKGROUND_COLOUR_NAME = '#FAFAFA'
+DEFAULT_PAD = 0.1
 
 
-def draw_graph(
-		obj, strict=True, ordering=True, direction='LR',
-		path=None, height=None, width=None, pad=None
-):
-	graph = Graph(obj=obj, strict=strict, ordering=ordering, direction=direction)
-
-	return graph.render(
-		path=path, height=height, width=width, pad=pad
-	)
-
-
-class Graph(BasicGraph):
+class GraphWithoutDisplay(BasicGraph):
 	def __init__(
 			self, obj=None, strict=True, ordering=True, node_style=None, edge_style=None,
 			colour_scheme=None, background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
-			font='helvetica', node_shape=None, node_shape_style=None,
-			direction='LR', stylist=None, label='\nPowered by Abstract', label_url='https://pypi.org/project/abstract/',
+			font='helvetica',
+			direction='LR', stylist=None, label='\nPowered by Abstract', label_url='https://github.com/idin/abstract',
+			tooltip=None,
 			label_location='bottom', font_size=10, label_colour='deepskyblue3', label_background_colour=None,
 			**kwargs
 	):
@@ -36,8 +28,8 @@ class Graph(BasicGraph):
 		self._direction = direction
 		self.background_colour = background_colour
 
-		self._graph_node_style_overwrite = None
-		self._graph_edge_style_overwrite = None
+		self._global_node_style_overwrite = node_style
+		self._global_edge_style_overwrite = edge_style
 		self._node_style_overwrites = {}
 		self._edge_style_overwrites = {}
 		self._node_colour_overwrites = {}
@@ -48,33 +40,30 @@ class Graph(BasicGraph):
 		self._label_url = label_url
 		self._label_background_colour = label_background_colour
 
+		self._tooltip = tooltip
+
 		self._font = font
 		self._font_size = font_size
 		self._kwargs = kwargs
 
 		if isinstance(obj, self.__class__):
-			colour_scheme_2 = obj._colour_scheme
+			colour_scheme = colour_scheme or obj._colour_scheme
 		else:
 			try:
 				obj = obj.__graph__()
 			except AttributeError:
 				pass
 
-			if isinstance(obj, dict) and 'colour_scheme' in obj:
-				colour_scheme_2 = obj['colour_scheme']
-			else:
-				colour_scheme_2 = None
+		if isinstance(obj, dict):
+			if 'colour_scheme' in obj:
+				colour_scheme = colour_scheme or obj['colour_scheme']
 
-		colour_scheme = colour_scheme or colour_scheme_2
+			if 'stylist' in obj:
+				stylist = stylist or obj['stylist']
+			if stylist is None:
+				stylist = 'pensieve'
 
 		self._colour_scheme = colour_scheme
-
-		if stylist is None:
-			stylist = RootAndBranchStylist(
-				colour_scheme=colour_scheme, node_style=node_style, font=font, node_shape=node_shape,
-				node_shape_style=node_shape_style, edge_style=edge_style
-			)
-
 		self._stylist = stylist
 
 		super().__init__(strict=strict, ordering=ordering)
@@ -144,16 +133,30 @@ class Graph(BasicGraph):
 		"""
 		return {edge.id: edge.style for node in self.nodes for edge in node.outward_edges if edge.has_style()}
 
+
+
 	def stylize(self):
-		if self._graph_node_style_overwrite is not None:
+		if self._global_node_style_overwrite is not None:
+			smart_global_node_style_overwrite = None
+			if 'shape' in self._global_node_style_overwrite:
+				if self._global_node_style_overwrite['shape'].lower().startswith('auto'):
+					if max([len(str(node.name)) for node in self.nodes]) < 3:
+						smart_global_node_style_overwrite = self._global_node_style_overwrite.copy()
+						smart_global_node_style_overwrite['shape'] = 'circle'
+			if smart_global_node_style_overwrite is None:
+				smart_global_node_style_overwrite = self._global_node_style_overwrite
+
 			for node in self.nodes:
-				node.style = self._graph_node_style_overwrite
+				node.style = smart_global_node_style_overwrite
 
-		if self._graph_edge_style_overwrite is not None:
+		if self._global_edge_style_overwrite is not None:
 			for edge in self.edges:
-				edge.style = self._graph_edge_style_overwrite
+				edge.style = self._global_edge_style_overwrite
 
-		self._stylist.paint(graph=self)
+		if self._stylist == 'pensieve':
+			stylize_with_pensieve(graph=self)
+		elif self._stylist == 'random':
+			stylize_randomly(graph=self)
 
 		for name, style in self._node_style_overwrites.items():
 			self.nodes_dict[name].style = style
@@ -177,15 +180,24 @@ class Graph(BasicGraph):
 			edge.style = style
 			_ = edge.style.colour
 
-		if self._graph_node_style_overwrite is not None:
+		if self._global_node_style_overwrite is not None:
+			smart_global_node_style_overwrite = None
+			if 'shape' in self._global_node_style_overwrite:
+				if self._global_node_style_overwrite['shape'].lower().startswith('auto'):
+					if max([len(str(node.name)) for node in self.nodes]) < 3:
+						smart_global_node_style_overwrite = self._global_node_style_overwrite.copy()
+						smart_global_node_style_overwrite['shape'] = 'circle'
+			if smart_global_node_style_overwrite is None:
+				smart_global_node_style_overwrite = self._global_node_style_overwrite
+
 			for node in self.nodes:
-				node.style.complement(self._graph_node_style_overwrite)
+				node.style.complement(smart_global_node_style_overwrite)
 
-		if self._graph_edge_style_overwrite is not None:
+		if self._global_edge_style_overwrite is not None:
 			for edge in self.edges:
-				edge.style.complement(self._graph_edge_style_overwrite)
+				edge.style.complement(self._global_edge_style_overwrite)
 
-	def get_graphviz_header(self, dpi=300, direction=None, height=None, width=None, pad=None):
+	def get_graphviz_header(self, dpi=300, direction=None, height=None, width=None, pad=DEFAULT_PAD):
 		"""
 		:type direction: str or NoneType
 		:type dpi: int
@@ -228,6 +240,10 @@ class Graph(BasicGraph):
 			if self._label_url is not None:
 				attributes['href'] = f'"{self._label_url}"'
 				attributes['target'] = '"_blank"'
+
+		if self._tooltip is not None:
+			attributes['tooltip'] = f'"{self._tooltip}"'
+
 		if dpi is not None:
 			attributes['dpi'] = f'{dpi}'
 		for key, value in self._kwargs.items():
@@ -265,7 +281,7 @@ class Graph(BasicGraph):
 
 		return first_part + second_part + third_part
 
-	def get_graphviz_str(self, direction=None, dpi=300, height=None, width=None, pad=None):
+	def get_graphviz_str(self, direction=None, dpi=300, height=None, width=None, pad=DEFAULT_PAD):
 		"""
 		:type direction: str or NoneType
 		:type dpi: int or NoneType
@@ -310,14 +326,21 @@ class Graph(BasicGraph):
 			if 'label' in dictionary:
 				self._label = '\n' + dictionary['label']
 
+			if 'tooltip' in dictionary:
+				self._tooltip = dictionary['tooltip']
+
 			if 'label_url' in dictionary:
 				self._label_url = dictionary['label_url']
 
-			if 'graph_node_style' in dictionary:
-				self._graph_node_style_overwrite = dictionary['graph_node_style']
+			if 'global_node_style' in dictionary:
+				self._global_node_style_overwrite = dictionary['global_node_style']
+			elif 'graph_node_style' in dictionary:
+				self._global_node_style_overwrite = dictionary['graph_node_style']
 
-			if 'graph_edge_style' in dictionary:
-				self._graph_edge_style_overwrite = dictionary['graph_edge_style']
+			if 'global_edge_style' in dictionary:
+				self._global_edge_style_overwrite = dictionary['global_edge_style']
+			elif 'graph_edge_style' in dictionary:
+				self._global_edge_style_overwrite = dictionary['graph_edge_style']
 
 			if 'direction' in dictionary:
 				self._direction = dictionary['direction']
@@ -407,8 +430,8 @@ class Graph(BasicGraph):
 			'ordering': self._ordering,
 			'node_styles': self._node_style_overwrites,
 			'edge_styles': self._edge_style_overwrites,
-			'graph_node_style': self._graph_node_style_overwrite,
-			'graph_edge_style': self._graph_edge_style_overwrite,
+			'global_node_style': self._global_node_style_overwrite,
+			'global_edge_style': self._global_edge_style_overwrite,
 			'node_colours': self._node_colour_overwrites,
 			'nodes': nodes_dict,
 			'edges': edges_list
@@ -533,7 +556,7 @@ class Graph(BasicGraph):
 		return result
 
 	def render(
-			self, path=None, view=True, direction=None, height=None, width=None, dpi=300, pad=None
+			self, path=None, view=True, direction=None, height=None, width=None, dpi=300, pad=DEFAULT_PAD
 	):
 		"""
 		:type direction: NoneType or str
@@ -559,25 +582,8 @@ class Graph(BasicGraph):
 			to_save.render(filename=filename, view=view)
 			return self.get_graphviz_source(direction=direction, pad=pad, dpi=None)
 
-	def get_svg(self, direction=None, pad=None, **kwargs):
-		"""
-		:type direction: NoneType or str
-		:type pad: NoneType or int or float
-		:rtype: str
-		"""
-		return self.render(direction=direction, pad=pad, **kwargs)._repr_svg_()
-
-	def get_html(self, direction=None, pad=None, **kwargs):
-		from IPython.core.display import HTML
-		return HTML(self.get_svg(direction=direction, pad=pad, **kwargs))
-
+	"""
 	def display_html(self, direction=None, pad=None, echo_errors=False, **kwargs):
-		"""
-		:type direction: NoneType or str
-		:type pad: NoneType or int or float
-		:type echo_errors: bool
-		:rtype: str
-		"""
 		try:
 			return displayHTML(self.get_svg(direction=direction, pad=pad, **kwargs))
 		except Exception as e:
@@ -594,8 +600,9 @@ class Graph(BasicGraph):
 					print(e)
 				from IPython.core.display import display as ipython_display
 				return ipython_display(html)
+	"""
 
-	def get_graphviz_source(self, direction=None, dpi=300, height=None, width=None, pad=None, output_format=None):
+	def get_graphviz_source(self, direction=None, dpi=300, height=None, width=None, pad=DEFAULT_PAD, output_format=None):
 		"""
 		:type direction: NoneType or str
 		:type dpi: NoneType or int
@@ -612,24 +619,3 @@ class Graph(BasicGraph):
 				direction=direction, height=height, width=width, pad=pad, dpi=dpi
 			)
 			return Source(source=graphviz_str_to_save, format=output_format)
-
-	def display(self, p=None, pad=0.2, direction=None, path=None, height=None, width=None, dpi=300):
-		try:
-			from IPython.core.display import display
-			display(self.render(
-				pad=pad, dpi=dpi, direction=direction or self._direction, path=path, height=height, width=width
-			))
-		except ImportError:
-			if p is not None:
-				p.pretty(self.get_tree_str())
-			else:
-				print(self.get_tree_str())
-
-	draw = display
-	visualize = display
-
-	def _repr_pretty_(self, p, cycle):
-		if cycle:
-			p.text('Graph')
-		else:
-			self.display(p=p)

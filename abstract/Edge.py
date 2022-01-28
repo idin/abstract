@@ -1,11 +1,11 @@
 from ._GraphObj import GraphObj
-from .graph_style.EdgeStyle import EdgeStyle
+from .styling.EdgeStyle import EdgeStyle
 from .Node import Node
 
 
 class Edge(GraphObj):
 	def __init__(
-			self, graph, start, end, id=None, value=None, label=None, style=None,
+			self, graph, start, end, id=None, value=None, label=None, tooltip=None, style=None,
 			**kwargs
 	):
 		"""
@@ -23,7 +23,7 @@ class Edge(GraphObj):
 			style = EdgeStyle(**style)
 
 		super().__init__(
-			graph=graph, id=None, value=value, label=label, style=style,
+			graph=graph, id=None, value=value, label=label, tooltip=tooltip, style=style,
 			**kwargs
 		)
 		self._start = start
@@ -88,31 +88,24 @@ class Edge(GraphObj):
 	def __repr__(self):
 		return str(self)
 
-	def get_graphviz_style_str(self):
-		style = self.style
-		if style is None:
-			return ''
-		else:
-			return style.get_graphviz_str()
-
-	def get_graphviz_label_str(self):
-		if self.label_or_value is None:
-			return ''
-		else:
-			return f'label="{self.label_or_value}"'
-
 	def get_graphviz_str(self):
-		without_style = f'"{self.start.name}" -> "{self.end.name}"'
-		style = self.get_graphviz_style_str()
-		label = self.get_graphviz_label_str()
-		if style == '' and label == '':
-			return without_style
-		elif style == '':
-			return f'{without_style} [{label}]'
-		elif label == '':
-			return f'{without_style} [{style}]'
+
+		parts = []
+		label_or_value = self.label_or_value
+		style = self.style
+		if label_or_value is not None:
+			parts.append(f'label="{self.label_or_value}"')
+		if self._tooltip is not None:
+			parts.append(f'tooltip="{self._tooltip}"')
+		if style is not None:
+			parts.append(style.get_graphviz_str())
+
+		if len(parts) > 0:
+			second_part = '[' + ' '.join(parts) + ']'
 		else:
-			return f'{without_style} [{label} {style}]'
+			second_part = ''
+
+		return f'"{self.start.name}" -> "{self.end.name}"' + second_part
 
 	@property
 	def start(self):

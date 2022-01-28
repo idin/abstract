@@ -1,5 +1,5 @@
 from ._GraphObj import GraphObj
-from .graph_style.NodeStyle import NodeStyle
+from .styling.NodeStyle import NodeStyle
 
 
 CORNER = u'\u2514'
@@ -10,7 +10,7 @@ VERTICAL = u'\u2502'
 
 class Node(GraphObj):
 	def __init__(
-			self, graph, name, value=None, label=None, style=None, index=0,
+			self, graph, name, value=None, label=None, tooltip=None, style=None, index=0,
 			**kwargs
 	):
 		"""
@@ -24,7 +24,7 @@ class Node(GraphObj):
 		style = style or NodeStyle()
 
 		super().__init__(
-			graph=graph, id=name, value=value, label=label, style=style,
+			graph=graph, id=name, value=value, label=label, tooltip=tooltip, style=style,
 			# additional_styling_function=additional_styling_function,
 			**kwargs
 		)
@@ -152,7 +152,7 @@ class Node(GraphObj):
 	@property
 	def label(self):
 		if self._label:
-			result = str(self.raw_label)
+			result = str(self._label)
 		else:
 			result = str(self.id)
 		return result.replace('"', '\\"')
@@ -244,13 +244,16 @@ class Node(GraphObj):
 		"""
 		:rtype: str
 		"""
+		parts = [f'label="{self.label}"']
+
+		if self._tooltip is not None:
+			parts.append(f'tooltip="{self._tooltip}"')
+
 		style = self.style
+		if style is not None:
+			parts.append(style.get_graphviz_str())
 
-		if style is None:
-			return f'"{self.id}" [label="{self.label}"]'
-
-		else:
-			return f'"{self.id}" [label="{self.label}" ' + style.get_graphviz_str() + ']'
+		return f'"{self.id}" [' + ' '.join(parts) + ']'
 
 	def connect_to(self, node, **kwargs):
 		"""

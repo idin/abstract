@@ -1,7 +1,7 @@
 from .Node import Node
 from .Edge import Edge
-from .graph_style.EdgeStyle import EdgeStyle
-from .graph_style.NodeStyle import NodeStyle
+from .styling.EdgeStyle import EdgeStyle
+from .styling.NodeStyle import NodeStyle
 from .get_ancestors import get_ancestors
 from .get_descendants import get_descendants
 from .parse_indentations_function import parse_indentations
@@ -169,20 +169,24 @@ class BasicGraph:
 		:type node: Node or str
 		:rtype: Node
 		"""
-		if isinstance(node, str):
+		if isinstance(node, (str, int)):
 			return self.nodes_dict[node]
-		else:
+		elif isinstance(node, Node):
 			return self.nodes_dict[node.id]
+		else:
+			raise TypeError(f'node of type {type(node)} is not supported!')
 
 	def get_node_name(self, node):
 		"""
 		:type node: Node or str
 		:rtype: Node
 		"""
-		if isinstance(node, str):
+		if isinstance(node, (str, int)):
 			return self.nodes_dict[node].id
-		else:
+		elif isinstance(node, Node):
 			return node.id
+		else:
+			raise TypeError(f'node of type {type(node)} is not supported!')
 
 	def generate_node_index(self):
 		index = self._node_counter
