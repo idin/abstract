@@ -133,14 +133,8 @@ class NodeStyle:
 
 	@fill_colour.setter
 	def fill_colour(self, fill_colour):
-		if fill_colour is None:
-			self._fill_colour = None
-			if self.colour is not None:
-				self._fill_colour = self.colour
-				self._fill_colour_based_on_main_colour = True
-		else:
+		if fill_colour is not None:
 			self._fill_colour = Colour(fill_colour)
-			self._fill_colour_based_on_main_colour = False
 
 	@property
 	def border_colour(self):
@@ -151,13 +145,8 @@ class NodeStyle:
 
 	@border_colour.setter
 	def border_colour(self, border_colour):
-		if border_colour is None:
-			if self.colour is not None:
-				self._border_colour = self.colour.darken_or_lighten(ratio=DEFAULT_NODE_COLOUR_DIFFERENCE_RATIO)
-				self._border_colour_based_on_main_colour = True
-		else:
+		if border_colour is not None:
 			self._border_colour = Colour(border_colour)
-			self._border_colour_based_on_main_colour = False
 
 	@property
 	def text_colour(self):
@@ -168,14 +157,7 @@ class NodeStyle:
 
 	@text_colour.setter
 	def text_colour(self, text_colour):
-		if text_colour is None:
-			if self.fill_colour is not None:
-				self._text_colour = self.fill_colour.farthest_gray
-				self._text_colour_based_on_main_colour = True
-			elif self.colour is not None:
-				self._text_colour = self.colour.farthest_gray
-				self._text_colour_based_on_main_colour = True
-		else:
+		if text_colour is not None:
 			self._text_colour = Colour(text_colour)
 			self._text_colour_based_on_main_colour = False
 

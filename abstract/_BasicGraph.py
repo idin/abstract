@@ -11,12 +11,14 @@ from copy import deepcopy
 
 
 class BasicGraph:
-	def __init__(self, strict=True, ordering=True):
+	def __init__(self, strict=True, ordering=True, node_label_converter=None, edge_label_converter=None):
 		self._nodes_dict = {}
 		self._is_strict = strict
 		self._ordering = ordering
 		self._nodes_have_graph = True
 		self._node_counter = 0
+		self._node_label_converter = node_label_converter
+		self._edge_label_converter = edge_label_converter
 		# if a dictionary or an object with a __graph__() method is passed use that to create the graph
 
 	_STATE_ATTRIBUTES = ['_nodes_dict', '_is_strict', '_ordering', '_node_counter']
@@ -199,7 +201,7 @@ class BasicGraph:
 		:param str name: name of the new node
 		:param str or NoneType label: a label for the node
 		:param value: node value
-		:param NodeStyle or str style: style of the node
+		:param NodeStyle or str or dict[str, str] style: style of the node
 		:param str if_node_exists: what to do if a node with that name exists. One of 'warn', 'error', 'ignore'
 		:param kwargs:
 		:rtype: Node

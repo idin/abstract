@@ -16,13 +16,18 @@ DEFAULT_PAD = 0.1
 class GraphWithoutDisplay(BasicGraph):
 	def __init__(
 			self, obj=None, strict=True, ordering=True, node_style=None, edge_style=None,
-			colour_scheme=None, background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
+			node_label_converter=None, edge_label_converter=None,
+			colour_scheme='pensieve2', background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
 			font='helvetica',
-			direction='LR', stylist=None, label='\nPowered by Abstract', label_url='https://github.com/idin/abstract',
+			direction='LR', stylist='pensieve', label='\nPowered by Abstract', label_url='https://github.com/idin/abstract',
 			tooltip=None,
 			label_location='bottom', font_size=10, label_colour='deepskyblue3', label_background_colour=None,
+			style_overwrite_allowed=False,
 			**kwargs
 	):
+		"""
+		:param style_overwrite_allowed: if False, a node style cannot be overwritten
+		"""
 
 		self._background_colour = None
 		self._direction = direction
@@ -58,6 +63,9 @@ class GraphWithoutDisplay(BasicGraph):
 			if 'colour_scheme' in obj:
 				colour_scheme = colour_scheme or obj['colour_scheme']
 
+			if 'style_overwrite_allowed' in obj:
+				style_overwrite_allowed = obj['style_overwrite_allowed']
+
 			if 'stylist' in obj:
 				stylist = stylist or obj['stylist']
 			if stylist is None:
@@ -65,8 +73,12 @@ class GraphWithoutDisplay(BasicGraph):
 
 		self._colour_scheme = colour_scheme
 		self._stylist = stylist
+		self._style_overwrite_allowed = style_overwrite_allowed
 
-		super().__init__(strict=strict, ordering=ordering)
+		super().__init__(
+			strict=strict, ordering=ordering,
+			node_label_converter=node_label_converter, edge_label_converter=edge_label_converter
+		)
 
 		if obj:
 			self.append(obj=obj)
@@ -244,8 +256,8 @@ class GraphWithoutDisplay(BasicGraph):
 		if self._tooltip is not None:
 			attributes['tooltip'] = f'"{self._tooltip}"'
 
-		if dpi is not None:
-			attributes['dpi'] = f'{dpi}'
+		#if dpi is not None:
+		#	attributes['dpi'] = f'{dpi}'
 		for key, value in self._kwargs.items():
 			if isinstance(value, int):
 				attributes[key] = value
@@ -253,7 +265,7 @@ class GraphWithoutDisplay(BasicGraph):
 				attributes[key] = f'"{value}"'
 
 		if len(attributes) > 0:
-			second_part += '\tGraph [' + ', '.join([f'{key} = {value}' for key, value in attributes.items()]) + ' ];\n'
+			second_part += '\t graph [' + ', '.join([f'{key} = {value}' for key, value in attributes.items()]) + ' ];\n'
 
 		second_part += f'\tbgcolor="{self.background_colour.hexadecimal}";\n'
 
@@ -408,7 +420,7 @@ class GraphWithoutDisplay(BasicGraph):
 		edges_list = []
 		for node in self.nodes:
 			nodes_dict[node.id] = {
-				'label': node.raw_label,
+				'label': node.display_label_or_value,
 				'value': node.value,
 				'style': node.style
 			}
@@ -428,6 +440,9 @@ class GraphWithoutDisplay(BasicGraph):
 		return {
 			'strict': self._is_strict,
 			'ordering': self._ordering,
+			'colour_scheme': self._colour_scheme,
+			'label': self._label,
+			'label_url': self._label_url,
 			'node_styles': self._node_style_overwrites,
 			'edge_styles': self._edge_style_overwrites,
 			'global_node_style': self._global_node_style_overwrite,

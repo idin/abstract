@@ -17,10 +17,6 @@ class Edge(GraphObj):
 		:param str label: a label to show
 		:param EdgeStyle or NoneType style: the style of the edge
 		"""
-		if style is None:
-			style = EdgeStyle()
-		elif isinstance(style, dict):
-			style = EdgeStyle(**style)
 
 		super().__init__(
 			graph=graph, id=None, value=value, label=label, tooltip=tooltip, style=style,
@@ -31,6 +27,10 @@ class Edge(GraphObj):
 		self.raw_id = id
 		start.append_outward_edge(edge=self)
 		end.append_inward_edge(edge=self)
+
+	@property
+	def _label_converter(self):
+		return self.graph._edge_label_converter
 
 	@property
 	def style(self):
@@ -44,10 +44,17 @@ class Edge(GraphObj):
 		"""
 		:type style: EdgeStyle or dict
 		"""
+		if self._style is not None and not self.graph._style_overwrite_allowed:
+			raise RuntimeError('Cannot overwrite edge style!')
+
 		if isinstance(style, dict):
-			style = EdgeStyle(**style)
-		self._style = style
-		self._style_is_native = style is not None
+			self._style = EdgeStyle(**style)
+		elif isinstance(style, EdgeStyle):
+			self._style = style
+		elif style is None:
+			pass
+		else:
+			raise TypeError(f'edge style of type {type(style)} is not supported!')
 
 	def is_similar_to(self, other):
 		"""
@@ -91,10 +98,10 @@ class Edge(GraphObj):
 	def get_graphviz_str(self):
 
 		parts = []
-		label_or_value = self.label_or_value
+		label_or_value = self.display_label_or_value()
 		style = self.style
 		if label_or_value is not None:
-			parts.append(f'label="{self.label_or_value}"')
+			parts.append(f'label="{label_or_value}"')
 		if self._tooltip is not None:
 			parts.append(f'tooltip="{self._tooltip}"')
 		if style is not None:

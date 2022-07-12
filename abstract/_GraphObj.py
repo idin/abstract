@@ -19,7 +19,8 @@ class GraphObj:
 		self._frozen = False
 		self._parameters = dict(kwargs)
 
-		self._style = style
+		self._style = None
+		self.style = style
 
 	def __getstate__(self):
 		return {
@@ -102,10 +103,18 @@ class GraphObj:
 	def label(self, label):
 		self._label = label
 
-	@property
-	def label_or_value(self):
+	def display_label(self):
+		if self._label_converter is not None:
+			return self._label_converter(self.label)
+		else:
+			return self.label
+
+	def display_label_or_value(self):
 		if self._label is not None:
-			return self._label
+			if self._label_converter is not None:
+				return self._label_converter(self._label)
+			else:
+				return self._label
 		else:
 			return self._value
 

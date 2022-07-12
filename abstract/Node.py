@@ -21,7 +21,6 @@ class Node(GraphObj):
 		:param style:
 		:param kwargs:
 		"""
-		style = style or NodeStyle()
 
 		super().__init__(
 			graph=graph, id=name, value=value, label=label, tooltip=tooltip, style=style,
@@ -46,10 +45,17 @@ class Node(GraphObj):
 		"""
 		:type style: NodeStyle or dict
 		"""
+		if self._style is not None and not self.graph._style_overwrite_allowed:
+			raise RuntimeError('Cannot overwrite node style!')
+
 		if isinstance(style, dict):
-			style = NodeStyle(**style)
-		self._style = style
-		# self._style_is_native = style is not None
+			self._style = NodeStyle(**style)
+		elif isinstance(style, NodeStyle):
+			self._style = style
+		elif style is None:
+			pass
+		else:
+			raise TypeError(f'node style of type {type(style)} is not supported!')
 
 	@property
 	def index(self):
@@ -161,6 +167,10 @@ class Node(GraphObj):
 	def label(self, label):
 		self._label = label
 
+	@property
+	def _label_converter(self):
+		return self.graph._node_label_converter
+
 	def __str__(self):
 		return f'Node:{self.id}'
 
@@ -244,7 +254,8 @@ class Node(GraphObj):
 		"""
 		:rtype: str
 		"""
-		parts = [f'label="{self.label}"']
+
+		parts = [f'label="{self.display_label()}"']
 
 		if self._tooltip is not None:
 			parts.append(f'tooltip="{self._tooltip}"')

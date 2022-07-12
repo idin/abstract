@@ -18,22 +18,24 @@ def stylize_with_pensieve(
 
 	# roots or semi-roots
 	for node in graph.nodes:
-		if is_root_or_parents_are_in_loop(node):
-			colour = get_least_used_colour(colours_used)
-			if node_style is None:
-				style = NodeStyle(colour=colour)
-			else:
-				style = node_style.copy()
-				style.reset_colours()
-				style.colour = colour
-			node.style = style
+		if node.style is None:
+			if is_root_or_parents_are_in_loop(node):
+				colour = get_least_used_colour(colours_used)
+				if node_style is None:
+					style = NodeStyle(colour=colour)
+				else:
+					style = node_style.copy()
+					style.reset_colours()
+					style.colour = colour
+				node.style = style
 
 	# branch nodes
 	for node in graph.nodes:
 		if not is_root_or_parents_are_in_loop(node) and not node.is_in_loop():
-			node.style = inherit_style(
-				node=node, pale_ratio=pale_ratio, divergence_ratio=divergence_ratio, main_style=node_style
-			)
+			if node.style is None:
+				node.style = inherit_style(
+					node=node, pale_ratio=pale_ratio, divergence_ratio=divergence_ratio, main_style=node_style
+				)
 
 	# branch edges
 	stylize_edges_based_on_nodes(graph=graph, edge_style=edge_style, edge_darkness_ratio=edge_darkness_ratio)

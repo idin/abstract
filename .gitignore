@@ -18,3 +18,5 @@ abstract/graph_style/__pycache__
 .ipynb_checkpoints
 abstract/styling/__pycache__
 abstract_lucifer_to_pypi.ipynb
+abstract/.DS_Store
+.DS_Store
