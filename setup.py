@@ -8,8 +8,8 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
 	name='abstract',
-	version='2022.7.10',
-	license='MIT',
+	version='2025.2.13',
+	license="Conditional Freedom License (CFL-1.0)",
 	author='Idin',
 	author_email='py@idin.ca',
 	url='https://github.com/idin/abstract',
@@ -20,7 +20,7 @@ setup(
 	classifiers=[
 		'Development Status :: 3 - Alpha',
 		'Intended Audience :: Developers',
-		'License :: OSI Approved :: MIT License',
+		'License :: Conditional Freedom License (CFL-1.0)',
 		'Programming Language :: Python :: 3 :: Only',
 		'Programming Language :: Python :: 3.6',
 		'Programming Language :: Python :: 3.7',

@@ -1,8 +1,9 @@
-# *Abstract*
-Abstract is a Python library for creating and drawing graphs 
-and taking advantage of graph properties.
+# Abstract
+Abstract is a Python library designed for creating and visualizing graphs, enabling users to leverage various graph properties effectively.
 
 ## Installation
+
+To install the library, simply run:
 
 ```bash
 pip install abstract
@@ -11,54 +12,33 @@ pip install abstract
 ## Graph
 
 ### Introduction
-In computer science, a graph is an abstract data type that 
-is meant to implement the undirected graph and directed graph 
-concepts from mathematics; specifically, the field of graph theory. 
-[[1]](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
+In computer science, a graph is an abstract data type that implements the concepts of undirected and directed graphs from mathematics, specifically within the field of graph theory. [[1]](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
 
-A graph data structure consists of a finite (and possibly mutable) 
-set of vertices or nodes or points, together with a set of 
-unordered pairs of these vertices for an undirected graph or 
-a set of ordered pairs for a directed graph. These pairs are known 
-as edges, arcs, or lines for an undirected graph and as arrows, 
-directed edges, directed arcs, or directed lines for a directed graph. 
-The vertices may be part of the graph structure, or may be external 
-entities represented by integer indices or references. 
-[[1]](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
-
-
+A graph data structure consists of a finite (and potentially mutable) set of vertices (or nodes) and a set of unordered pairs of these vertices for undirected graphs, or ordered pairs for directed graphs. These pairs are referred to as edges, arcs, or lines in undirected graphs, and as arrows, directed edges, directed arcs, or directed lines in directed graphs. The vertices may be part of the graph structure or may be represented externally by integer indices or references. [[1]](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))
 
 ### Usage
-The `Graph` class allows you to create nodes and edges and 
-visualize the resulting graph. Edges can have direction which
-indicates parent-child relationship.
+The `Graph` class allows you to create nodes and edges, as well as visualize the resulting graph. Edges can have direction, indicating parent-child relationships.
 
-To construct a new graph, use *Graph()*.
+To create a new graph, use the `Graph()` constructor:
+
 ```python
 from abstract import Graph
 
 graph = Graph(direction='LR') 
-# default direction is 'LR', other options are: 'TB', 'BT', 'RL'
+# The default direction is 'LR'; other options include 'TB', 'BT', and 'RL'.
 ```
 
 ### `add_node(...)`
-The `add_node` method creates a node in the graph 
-and returns a *Node* object. 
+The `add_node` method creates a node in the graph and returns a `Node` object. 
 
-It takes the following arguments:
-* `name`: name of the new node (should be unique); snake case is recommended
-* `label` (optional): it can be any string, if it is missing the name will be displayed
-* `value` (optional): can be any object
-* `style` (optional): it should be a *NodeStyle* object and is only used for rendering
-* `if_node_exists` (optional): what to do if a node with this name exists 
-and can be 'warn', 'error', or 'ignore'; default is 'warn'
+It accepts the following arguments:
+* `name`: The name of the new node (should be unique); snake_case is recommended.
+* `label` (optional): Any string; if omitted, the name will be displayed.
+* `value` (optional): Can be any object.
+* `style` (optional): Should be a `NodeStyle` object, used only for rendering.
+* `if_node_exists` (optional): Specifies the action if a node with this name already exists; options are 'warn', 'error', or 'ignore'; the default is 'warn'.
 
-Let's use the 
-[Rock, Paper, Scissors, Lizard, Spock](https://bigbangtheory.fandom.com/wiki/Rock,_Paper,_Scissors,_Lizard,_Spock) 
-game to show how `Graph` works. The following list shows the order in which
-an object in the game beats the object to its right of it in the list and 
-gets beaten by the object left of it. Please note that there are only five
-objects and they are repeated to illustrate all possible pairs.
+To illustrate how the `Graph` class works, let's use the [Rock, Paper, Scissors, Lizard, Spock](https://bigbangtheory.fandom.com/wiki/Rock,_Paper,_Scissors,_Lizard,_Spock) game. The following list shows the order in which an object in the game defeats the object to its right and is defeated by the object to its left. Note that there are only five objects, which are repeated to demonstrate all possible pairs.
 
 ```python
 node_list = [
@@ -67,61 +47,51 @@ node_list = [
 ]
 ```
 
-Now let's create `nodes` with the same names:
+Now, let's create nodes with the same names:
+
 ```python
-# create a set to avoid duplicates
+# Create a set to avoid duplicates
 for node in set(node_list):
-    node = graph.add_node(name=node)
+    graph.add_node(name=node)
     
-graph.display(direction='TB') # left-right direction is too tall
+graph.display(direction='TB')  # The left-right direction is too tall.
 ```
 ![image of the graph](http://idin.ca/storage/python/abstract/images/rock_paper_scissors_lizard_spock_1.png)
 
-**Note**: by default, Graph uses colour theme from the 
-[colouration](http://pypi.org/project/colouration) library for roots and uses
-the directionality of edges to determine the colour of other nodes.
-In the above example, without any edges, all nodes are roots.
+**Note**: By default, the Graph uses the colour theme from the [colouration](http://pypi.org/project/colouration) library for root nodes and determines the colour of other nodes based on the directionality of edges. In the above example, without any edges, all nodes are considered roots.
 
-### `connect(...)` (add an edge)
-The `connect` method creates an `edge` from a `start` node to an `end` node. 
-The `start` and `end` arguments can be either names of nodes or the `Node` objects.
+### `connect(...)` (Add an Edge)
+The `connect` method creates an edge from a `start` node to an `end` node. The `start` and `end` arguments can be either the names of nodes or the `Node` objects themselves.
 
 ```python
-for i in range(len(node_list)-1):
-    edge = graph.connect(start=node_list[i], end=node_list[i + 1])
-graph.display(direction='LR') # top-bottom direction is too tall
+for i in range(len(node_list) - 1):
+    graph.connect(start=node_list[i], end=node_list[i + 1])
+graph.display(direction='LR')  # The top-bottom direction is too tall.
 ```
 ![image of the graph](http://idin.ca/storage/python/abstract/images/rock_paper_scissors_lizard_spock_2.png)
 
-**Note**: nodes that form a loop are coloured differently 
-(red circles with yellow colour inside)
+**Note**: Nodes that form a loop are coloured differently (red circles with yellow interiors).
 
 ### *get_node*
-To retrieve a node from the graph you can use the *get_node* method 
-which returns a *Node* object.
+To retrieve a node from the graph, use the `get_node` method, which returns a `Node` object.
+
 ```python
 rock = graph.get_node('rock')
 ```
 
 ### `display(...)`
-The `display` method visualizes the graph and if a `path` is provided it saves it
-to an image file that can be a *pdf* or *png*; 
-you can also provide the resolution with the `dpi` argument. 
-The file format is infered from 
-the `path` argument. 
+The `display` method visualizes the graph. If a `path` is provided, it saves the visualization to an image file, which can be in either *pdf* or *png* format. You can also specify the resolution using the `dpi` argument. The file format is inferred from the `path` argument.
 
 ```python
-# save as a png file and view the file
+# Save as a PNG file and view the file
 graph.draw(path='my_graph.png', view=True)
-
 ```
 
 ### `Graph(obj=...)`
-You can create a graph from any object that has a `__graph__()` method. 
-Examples of such objects are: 
+You can create a graph from any object that has a `__graph__()` method. Examples of such objects include: 
 * `Graph` class from this library
 * `Pensieve` class from the [pensieve](https://pypi.org/project/pensieve/) library
-* `Page` class from [internet.wikipedia](https://pypi.org/project/internet/) submodule
+* `Page` class from the [internet.wikipedia](https://pypi.org/project/internet/) submodule
 
 ```python
 from pensieve import Pensieve
@@ -137,14 +107,13 @@ pensieve['seven'] = 7
 pensieve['eight'] = lambda two, four: two * four
 pensieve['nine'] = lambda three: three * three
 pensieve['ten'] = lambda two, five: two * five
-graph = Graph(obj=pensieve, direction='TB') # or Graph(pensieve)
+graph = Graph(obj=pensieve, direction='TB')  # or Graph(pensieve)
 graph.display()
 ```
 ![image of the graph](http://idin.ca/storage/python/abstract/images/pensieve_numbers_graph.png)
 
-
 ### `random(...)`
-The `random` method creates a random Graph.
+The `random` method creates a random graph.
 
 ```python
 g1 = Graph.random(num_nodes=8, connection_probability=0.4, seed=6)
@@ -153,8 +122,7 @@ g1
 ![image of the graph](http://idin.ca/storage/python/abstract/images/random_graph_1.png)
 
 ### Adding Two Graphs: `+`
-You can easily add two graphs using the `+` operator. 
-The result will have the union of nodes and edges in both graphs.
+You can easily add two graphs using the `+` operator. The result will contain the union of nodes and edges from both graphs.
 
 ```python
 g2 = Graph.random(num_nodes=7, start_index=3, connection_probability=0.4, seed=41)
@@ -169,8 +137,7 @@ g3
 ![image of the graph](http://idin.ca/storage/python/abstract/images/random_graph_1_plus_2.png)
 
 ### Finding Loops
-The `node`'s `is_in_loop` method helps you find nodes that form a loop;
-*i.e.*, nodes that have at least one descendant which is also an ancestor.
+The `is_in_loop` method of a node helps identify nodes that form a loop; that is, nodes that have at least one descendant that is also an ancestor.
 
 ```python
 graph_with_loop = Graph()
@@ -193,7 +160,7 @@ for node in graph_with_loop.nodes:
     else:
         print(node.name, 'is not in a loop')
 ```
-output:
+Output:
 ```text
 a is in a loop
 b is in the same loop as a
@@ -206,6 +173,6 @@ f is in a loop
 ## Future Features
 
 * Create a graph from:
-  * list of dictionaries
-  * dataframe
-* Create a new graph by filtering a graph
+  * List of dictionaries
+  * DataFrame
+* Create a new graph by filtering an existing graph

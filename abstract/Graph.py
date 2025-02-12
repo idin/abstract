@@ -8,7 +8,7 @@ class Graph(GraphWithoutDisplay):
 		:type pad: NoneType or int or float
 		:rtype: str
 		"""
-		source =  self.render(direction=direction or self._direction, pad=pad, **kwargs)
+		source = self.render(direction=direction or self._direction, pad=pad, **kwargs)
 		try:
 			return source._repr_svg_()
 		except AttributeError:

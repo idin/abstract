@@ -109,6 +109,7 @@ class GraphWithoutDisplay(BasicGraph):
 
 	@wraps(BasicGraph.add_node)
 	def add_node(self, name, style=None, **kwargs):
+		# if name is a Node it should be handled by the BasicGraph.add_node method
 		return super().add_node(name=name, style=style, **kwargs)
 
 	@wraps(BasicGraph.disconnect)
@@ -145,8 +146,6 @@ class GraphWithoutDisplay(BasicGraph):
 		"""
 		return {edge.id: edge.style for node in self.nodes for edge in node.outward_edges if edge.has_style()}
 
-
-
 	def stylize(self):
 		if self._global_node_style_overwrite is not None:
 			smart_global_node_style_overwrite = None
@@ -171,7 +170,7 @@ class GraphWithoutDisplay(BasicGraph):
 			stylize_randomly(graph=self)
 
 		for name, style in self._node_style_overwrites.items():
-			self.nodes_dict[name].style = style
+			self.nodes_dict[name].style.complement(style)
 
 		for edge_id, style in self._edge_style_overwrites.items():
 			self.edges_dict[edge_id].style = style

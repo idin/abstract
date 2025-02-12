@@ -206,32 +206,50 @@ class BasicGraph:
 		:param kwargs:
 		:rtype: Node
 		"""
+		if isinstance(name, str):
+			if name in self.nodes_dict:
+				if if_node_exists == 'ignore':
+					pass
+				elif if_node_exists == 'warn':
+					warnings.warn(f'Warning! A node with name "{name}" already exists in graph!')
+				else:
+					raise KeyError(f'duplicate node id:"{name}"!')
 
-		if name in self.nodes_dict:
+				node = self.get_node(node=name)
+				if style is not None:
+					node.style = style
+				if label is not None:
+					node.label = label
+				if value is not None:
+					node.value = value
+				return node
 
-			if if_node_exists == 'ignore':
-				pass
-			elif if_node_exists == 'warn':
-				warnings.warn(f'Warning! A node with name "{name}" already exists in graph!')
 			else:
-				raise KeyError(f'duplicate node id:"{name}"!')
-
-			node = self.get_node(node=name)
-			if style is not None:
-				node.style = style
-			if label is not None:
-				node.label = label
-			if value is not None:
-				node.value = value
-			return node
-
+				node = Node(
+					name=name, graph=self, label=label, value=value,
+					style=style, index=self.generate_node_index(), **kwargs
+				)
+				self.nodes_dict[name] = node
+				return node
+		elif isinstance(name, Node):
+			node = name
+			del name
+			if node.id in self.nodes_dict:
+				# if the node is already in the graph and node.graph is self then do nothing
+				if node.graph is self and self.nodes_dict[node.id] is node:
+					pass
+				else:
+					raise ValueError(f'node with id "{node.id}" is already in a graph!')
+			else:
+				if node.graph is not None:
+					if node.graph is self:
+						raise ValueError(f'node with id "{node.id}" is already in a graph but not in the graph dictionary: {self.nodes_dict.keys()}')
+					else:
+						raise ValueError(f'node with id "{node.id}" is already in a graph!')
+				self.nodes_dict[node.id] = node
+				return node
 		else:
-			node = Node(
-				name=name, graph=self, label=label, value=value,
-				style=style, index=self.generate_node_index(), **kwargs
-			)
-			self.nodes_dict[name] = node
-			return node
+			raise TypeError(f'node of type {type(node)} is not supported!')
 
 	def remove_node(self, node):
 		"""
