@@ -20,7 +20,7 @@ setup(
 	classifiers=[
 		'Development Status :: 3 - Alpha',
 		'Intended Audience :: Developers',
-		'License :: Conditional Freedom License (CFL-1.0)',
+		'License :: Other/Proprietary License',
 		'Programming Language :: Python :: 3 :: Only',
 		'Programming Language :: Python :: 3.6',
 		'Programming Language :: Python :: 3.7',
