@@ -1,4 +1,4 @@
-# Abstract
+# Abstract 🕸️
 Abstract is a Python library designed for creating and visualizing graphs, enabling users to leverage various graph properties effectively.
 
 ## Installation
