@@ -1,9 +1,17 @@
 import re
+from typing import List, Optional, Tuple, Generator
 
 
-def parse_indentations(lines, indent=None):
+def parse_indentations(lines: List[str], indent: Optional[str] = None) -> Generator[Tuple[int, int, str, Optional[int]], None, None]:
 	"""
-	Parse an indented outline into (index, level, content, parent) tuples.
+	Parses an indented outline into (index, level, content, parent) tuples.
+
+	Args:
+		lines (List[str]): The lines of text to parse.
+		indent (Optional[str]): The indentation to use for parsing.
+
+	Yields:
+		Tuple[int, int, str, Optional[int]]: A tuple containing the index, level, content, and parent index.
 	"""
 	regex = re.compile(r'^(?P<indent>(?: {4})*)(?P<name>\S.*)')
 	stack = []
@@ -24,7 +32,6 @@ def parse_indentations(lines, indent=None):
 			level = len(match.group('indent')) // 4
 			if level > len(stack):
 				raise ValueError('Indentation too deep: "{0}"'.format(line))
-			# stack[level:] = [match.group('name')]
 			stack[level:] = [index]
 			content = match.group('name')
 		else:

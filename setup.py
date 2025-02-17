@@ -8,7 +8,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
 	name='abstract',
-	version='2025.2.13.1',
+	version='2025.2.17.0',
 	license="Conditional Freedom License (CFL-1.0)",
 	author='Idin',
 	author_email='py@idin.ca',

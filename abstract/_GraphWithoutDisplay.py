@@ -7,7 +7,9 @@ from functools import wraps
 import random
 from colouration import Colour
 from .styling import stylize_with_pensieve, stylize_randomly
-
+from typing import Optional, Union, Dict, Callable
+from .Node import Node
+from .Edge import Edge
 
 DEFAULT_BACKGROUND_COLOUR_NAME = '#FAFAFA'
 DEFAULT_PAD = 0.1
@@ -15,7 +17,7 @@ DEFAULT_PAD = 0.1
 
 class GraphWithoutDisplay(BasicGraph):
 	def __init__(
-			self, obj=None, strict=True, ordering=True, node_style=None, edge_style=None,
+			self, obj=None, strict=False, ordering=True, node_style=None, edge_style=None,
 			node_label_converter=None, edge_label_converter=None,
 			colour_scheme='pensieve2', background_colour=DEFAULT_BACKGROUND_COLOUR_NAME,
 			font='helvetica',
@@ -26,7 +28,30 @@ class GraphWithoutDisplay(BasicGraph):
 			**kwargs
 	):
 		"""
-		:param style_overwrite_allowed: if False, a node style cannot be overwritten
+		Initializes a GraphWithoutDisplay instance.
+
+		Args:
+			obj: The object to create the graph from.
+			strict (bool): If True, the graph will be strict. Strict graphs have no multiple edges between the same nodes.
+			ordering (bool): If True, the graph will maintain ordering.
+			node_style (Optional[NodeStyle]): Global node style.
+			edge_style (Optional[EdgeStyle]): Global edge style.
+			node_label_converter (Optional[callable]): Function to convert node labels.
+			edge_label_converter (Optional[callable]): Function to convert edge labels.
+			colour_scheme (str): Colour scheme for the graph.
+			background_colour (str): Background colour of the graph.
+			font (str): Font for the graph.
+			direction (str): Direction of the graph layout.
+			stylist (str): Stylist for the graph.
+			label (str): Label for the graph.
+			label_url (str): URL for the label.
+			tooltip (Optional[str]): Tooltip for the graph.
+			label_location (str): Location of the label.
+			font_size (int): Font size for the label.
+			label_colour (str): Colour of the label.
+			label_background_colour (Optional[str]): Background colour for the label.
+			style_overwrite_allowed (bool): If False, a node style cannot be overwritten.
+			**kwargs: Additional keyword arguments.
 		"""
 
 		self._background_colour = None
@@ -83,11 +108,17 @@ class GraphWithoutDisplay(BasicGraph):
 		if obj:
 			self.append(obj=obj)
 
-	def __getstate__(self):
+	def __getstate__(self) -> Dict:
+		"""
+		Returns the state of the graph for pickling.
+		Returns:
+			Dict: The state of the graph.
+		"""
 		state = super().__getstate__()
 		return state
 
 	def update_nodes(self):
+		"""Updates the nodes in the graph."""
 		if not self._nodes_have_graph:
 			for node in self._nodes_dict.values():
 				node._graph = self
@@ -95,6 +126,11 @@ class GraphWithoutDisplay(BasicGraph):
 		self._nodes_have_graph = True
 
 	def __setstate__(self, state):
+		"""
+		Restores the state of the graph from a pickled state.
+		Args:
+			state: The pickled state of the graph.
+		"""
 		super().__setstate__(state=state)
 		'''
 		self._node_style = state['node_style']
@@ -104,49 +140,91 @@ class GraphWithoutDisplay(BasicGraph):
 		self.update_nodes()
 
 	@wraps(BasicGraph.connect)
-	def connect(self, start, end, style=None, **kwargs):
+	def connect(self, start: Union[str, Node], end: Union[str, Node], style: Optional[EdgeStyle] = None, **kwargs) -> Edge:
+		"""
+		Connects two nodes in the graph.
+
+		Args:
+			start (Union[str, Node]): The starting node.
+			end (Union[str, Node]): The ending node.
+			style (Optional[EdgeStyle]): The style of the edge.
+			**kwargs: Additional keyword arguments.
+
+		Returns:
+			Edge: The created edge.
+		"""
 		return super().connect(start=start, end=end, style=style, **kwargs)
 
 	@wraps(BasicGraph.add_node)
-	def add_node(self, name, style=None, **kwargs):
+	def add_node(self, name: str, style: Optional[NodeStyle] = None, **kwargs) -> Node:
+		"""
+		Adds a node to the graph.
+
+		Args:
+			name (str): The name of the new node.
+			style (Optional[NodeStyle]): The style of the node.
+			**kwargs: Additional keyword arguments.
+
+		Returns:
+			Node: The created node.
+		"""
 		# if name is a Node it should be handled by the BasicGraph.add_node method
 		return super().add_node(name=name, style=style, **kwargs)
 
 	@wraps(BasicGraph.disconnect)
-	def disconnect(self, edge):
+	def disconnect(self, edge: Edge):
+		"""
+		Disconnects an edge from the graph.
+
+		Args:
+			edge (Edge): The edge to disconnect.
+		"""
 		return super().disconnect(edge=edge)
 
 	@property
-	def background_colour(self):
+	def background_colour(self) -> Colour:
 		"""
-		:rtype: Colour
+		Gets the background colour of the graph.
+		
+		Returns:
+			Colour: The background colour of the graph.
 		"""
 		return self._background_colour
 
 	@background_colour.setter
-	def background_colour(self, background_colour):
+	def background_colour(self, background_colour: Union[Colour, str]):
 		"""
-		:type background_colour: Colour or str
+		Sets the background colour of the graph.
+
+		Args:
+			background_colour (Union[Colour, str]): The background colour to set.
 		"""
 		if not isinstance(background_colour, Colour):
 			background_colour = Colour(obj=background_colour)
 		self._background_colour = background_colour
 
 	@property
-	def node_styles(self):
+	def node_styles(self) -> Dict[str, NodeStyle]:
 		"""
-		:rtype: dict[str, NodeStyle]
+		Gets the styles of the nodes in the graph.
+
+		Returns:
+			Dict[str, NodeStyle]: The styles of the nodes in the graph.
 		"""
 		return {name: node.style for name, node in self.nodes_dict.items() if node.has_style()}
 
 	@property
-	def edge_styles(self):
+	def edge_styles(self) -> Dict[str, EdgeStyle]:
 		"""
-		:rtype: dict[str, EdgeStyle]
+		Gets the styles of the edges in the graph.
+
+		Returns:
+			Dict[str, EdgeStyle]: The styles of the edges in the graph.
 		"""
 		return {edge.id: edge.style for node in self.nodes for edge in node.outward_edges if edge.has_style()}
 
 	def stylize(self):
+		"""Applies styles to the nodes and edges in the graph."""
 		if self._global_node_style_overwrite is not None:
 			smart_global_node_style_overwrite = None
 			if 'shape' in self._global_node_style_overwrite:
@@ -208,14 +286,23 @@ class GraphWithoutDisplay(BasicGraph):
 			for edge in self.edges:
 				edge.style.complement(self._global_edge_style_overwrite)
 
-	def get_graphviz_header(self, dpi=300, direction=None, height=None, width=None, pad=DEFAULT_PAD):
+	def get_graphviz_header(
+			self, dpi: int = 300, direction: Optional[str] = None, 
+			height: Optional[Union[int, float]] = None, width: Optional[Union[int, float]] = None, 
+			pad: Union[int, float] = DEFAULT_PAD
+		) -> str:
 		"""
-		:type direction: str or NoneType
-		:type dpi: int
-		:type height: float or int or NoneType
-		:type width: float or int or NoneType
-		:type pad: int or float or NoneType
-		:rtype: str
+		Generates the Graphviz header for the graph.
+
+		Args:
+			dpi (int): The DPI of the graph.
+			direction (Optional[str]): The direction of the graph.
+			height (Optional[Union[int, float]]): The height of the graph.
+			width (Optional[Union[int, float]]): The width of the graph.
+			pad (Union[int, float]): The padding of the graph.
+
+		Returns:
+			str: The Graphviz header.
 		"""
 		direction = direction or self._direction
 
@@ -292,14 +379,23 @@ class GraphWithoutDisplay(BasicGraph):
 
 		return first_part + second_part + third_part
 
-	def get_graphviz_str(self, direction=None, dpi=300, height=None, width=None, pad=DEFAULT_PAD):
+	def get_graphviz_str(
+			self, direction: Optional[str] = None, 
+			dpi: Optional[int] = 300, height: Optional[Union[int, float]] = None, width: Optional[Union[int, float]] = None, 
+			pad: Union[int, float] = DEFAULT_PAD
+		) -> str:
 		"""
-		:type direction: str or NoneType
-		:type dpi: int or NoneType
-		:type height: float or int or NoneType
-		:type width: float or int or NoneType
-		:type pad: int or float or NoneType
-		:rtype: str
+		Generates the Graphviz string representation of the graph.
+
+		Args:
+			direction (Optional[str]): The direction of the graph.
+			dpi (Optional[int]): The DPI of the graph.
+			height (Optional[Union[int, float]]): The height of the graph.
+			width (Optional[Union[int, float]]): The width of the graph.
+			pad (Union[int, float]): The padding of the graph.
+
+		Returns:
+			str: The Graphviz representation.
 		"""
 		direction = direction or self._direction
 
@@ -310,9 +406,13 @@ class GraphWithoutDisplay(BasicGraph):
 
 	def append(self, obj):
 		"""
-		adds nodes and edges from an object's __graph__() method which is essentially just a dictionary
-		:type obj: Object
-		:rtype: Graph
+		Appends nodes and edges from an object's __graph__() method.
+
+		Args:
+			obj: The object to append to the graph.
+
+		Returns:
+			Graph: The updated graph.
 		"""
 		if isinstance(obj, (list, tuple)):
 			for item in obj:
@@ -402,18 +502,26 @@ class GraphWithoutDisplay(BasicGraph):
 			return self
 
 	@classmethod
-	def from_dict(cls, obj):
+	def from_dict(cls, obj: Dict) -> 'GraphWithoutDisplay':
 		"""
-		:param obj:
-		:rtype: Graph
+		Creates a graph from a dictionary representation.
+
+		Args:
+			obj: The dictionary representation of the graph.
+
+		Returns:
+			Graph: The created graph.
 		"""
 		graph = cls()
 		graph.append(obj=obj)
 		return graph
 
-	def __graph__(self):
+	def __graph__(self) -> Dict:
 		"""
-		:rtype: dict
+		Returns the dictionary representation of the graph.
+
+		Returns:
+			Dict: The dictionary representation of the graph.
 		"""
 		nodes_dict = {}
 		edges_list = []
@@ -453,19 +561,27 @@ class GraphWithoutDisplay(BasicGraph):
 
 	@classmethod
 	def random(
-			cls, num_nodes, cycle=False, start_index=1, connection_probability=0.5,
-			ordering=True, seed=None
+			cls, 
+			num_nodes: int, 
+			strict: bool = False, cycle: bool = False, start_index: int = 1, connection_probability: float = 0.5,
+			ordering: bool = True, seed: Optional[int] = None
 	):
 		"""
-		creates a random graph
-		:param int num_nodes:
-		:param bool cycle:
-		:param int start_index:
-		:param float connection_probability:
-		:param bool ordering:
-		:rtype: BasicGraph
+		Creates a random graph.
+
+		Args:
+			num_nodes (int): The number of nodes in the graph.
+			strict (bool): If True, the graph will be strict.
+			cycle (bool): If True, the graph will be a cycle.
+			start_index (int): The starting index of the nodes.
+			connection_probability (float): The probability of a connection between two nodes.
+			ordering (bool): If True, the graph will maintain ordering.
+			seed (Optional[int]): The seed for the random number generator.
+
+		Returns:
+			GraphWithoutDisplay: The random graph.
 		"""
-		graph = cls(strict=True, ordering=ordering)
+		graph = cls(strict=strict, ordering=ordering)
 		connection_probability = min(1.0, max(0.0, connection_probability))
 		node_names = [i + start_index for i in range(num_nodes)]
 		for n in node_names:
@@ -483,21 +599,28 @@ class GraphWithoutDisplay(BasicGraph):
 
 		return graph
 
-	def __add__(self, other):
+	def __add__(self, other: 'GraphWithoutDisplay') -> 'GraphWithoutDisplay':
 		"""
-		combines two graphs
-		:type other: Graph
-		:rtype: Graph
+		Combines two graphs.
+
+		Args:
+			other: The other graph to combine with.
+
+		Returns:
+			GraphWithoutDisplay: The combined graph.
 		"""
 		return self.add(other=other)
 
-	def add(self, other, add_values_function=None):
+	def add(self, other: 'GraphWithoutDisplay', add_values_function: Optional[Callable] = None) -> 'GraphWithoutDisplay':
 		"""
-		combines two graphs
-		:type self: Graph
-		:type other: Graph
-		:type add_values_function: callable
-		:rtype: Graph
+		Combines two graphs.
+
+		Args:
+			other: The other graph to combine with.
+			add_values_function: The function to add the values of the nodes.
+
+		Returns:
+			GraphWithoutDisplay: The combined graph.
 		"""
 
 		d1 = self.__graph__()
@@ -570,16 +693,29 @@ class GraphWithoutDisplay(BasicGraph):
 		return result
 
 	def render(
-			self, path=None, view=True, direction=None, height=None, width=None, dpi=300, pad=DEFAULT_PAD
-	):
+			self, 
+			path: Optional[str] = None, 
+			view: bool = True, 
+			direction: Optional[str] = None, 
+			height: Optional[Union[int, float]] = None, 
+			width: Optional[Union[int, float]] = None, 
+			dpi: int = 300, 
+			pad: Union[int, float] = DEFAULT_PAD
+	) -> Union[Source, None]:
 		"""
-		:type direction: NoneType or str
-		:type dpi: NoneType or int
-		:type height: NoneType of int or float
-		:type width: NoneType or int or float
-		:type pad: NoneType or int or float
-		:type output_format: str or NoneType
-		:rtype: Source
+		Renders the graph and returns the Graphviz source.
+
+		Args:
+			path (Optional[str]): The path to save the graph.
+			view (bool): Whether to view the graph.
+			direction (Optional[str]): The direction of the graph.
+			height (Optional[Union[int, float]]): The height of the graph.
+			width (Optional[Union[int, float]]): The width of the graph.
+			dpi (int): The DPI of the graph.
+			pad (Union[int, float]): The padding of the graph.
+
+		Returns:
+			Union[Source, None]: The Graphviz source or None.
 		"""
 		direction = direction or self._direction
 
@@ -616,20 +752,48 @@ class GraphWithoutDisplay(BasicGraph):
 				return ipython_display(html)
 	"""
 
-	def get_graphviz_source(self, direction=None, dpi=300, height=None, width=None, pad=DEFAULT_PAD, output_format=None):
+	@staticmethod
+	def _get_graphviz_source(string: str) -> Source:
 		"""
-		:type direction: NoneType or str
-		:type dpi: NoneType or int
-		:type height: NoneType of int or float
-		:type width: NoneType or int or float
-		:type pad: NoneType or int or float
-		:type output_format: str or NoneType
-		:rtype: Source
+		Converts a string to a Graphviz source.
+
+		Args:
+			string (str): The string to be converted.
+
+		Returns:
+			Source: The Graphviz source.
+		"""
+		if not isinstance(string, str):
+			raise TypeError(f'string must be a string but is {type(string)}')
+		return Source(source=string)
+
+	def get_graphviz_source(
+			self, 
+			direction: Optional[str] = None, 
+			dpi: Optional[int] = 300, 
+			height: Optional[Union[int, float]] = None, 
+			width: Optional[Union[int, float]] = None, 
+			pad: Union[int, float] = DEFAULT_PAD, 
+			output_format: Optional[str] = None
+	) -> Source:
+		"""
+		Generates the Graphviz source for the graph.
+
+		Args:
+			direction (Optional[str]): The direction of the graph.
+			dpi (Optional[int]): The DPI of the graph.
+			height (Optional[Union[int, float]]): The height of the graph.
+			width (Optional[Union[int, float]]): The width of the graph.
+			pad (Union[int, float]): The padding of the graph.
+			output_format (Optional[str]): The format of the graph.
+
+		Returns:
+			Source: The Graphviz source.
 		"""
 		if height is None and width is None:
-			return Source(source=self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
+			return self._get_graphviz_source(self.get_graphviz_str(direction=direction, pad=pad, dpi=None))
 		else:
 			graphviz_str_to_save = self.get_graphviz_str(
 				direction=direction, height=height, width=width, pad=pad, dpi=dpi
 			)
-			return Source(source=graphviz_str_to_save, format=output_format)
+			return self._get_graphviz_source(graphviz_str_to_save)

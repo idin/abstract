@@ -1,9 +1,16 @@
+from typing import List, Dict, Optional, Tuple, Union
 
-
-def _get_descendants(obj, _objects_travelled=None, max_depth=None):
+def _get_descendants(obj, _objects_travelled: Optional[List] = None, max_depth: Optional[int] = None) -> Tuple[List, Dict]:
 	"""
-	:type _objects_travelled: list or NoneType
-	:rtype: list[Node]
+	Retrieves the descendants of an object.
+
+	Args:
+		obj: The object to retrieve descendants from.
+		_objects_travelled (Optional[List]): List of objects already travelled.
+		max_depth (Optional[int]): Maximum depth for travelling through objects' children.
+
+	Returns:
+		Tuple[List, Dict]: A tuple containing a list of descendants and a dictionary of descendants with their distances.
 	"""
 	if max_depth is not None:
 		if max_depth <= 0:
@@ -34,7 +41,18 @@ def _get_descendants(obj, _objects_travelled=None, max_depth=None):
 		return descendants, descendants_dict
 
 
-def get_descendants(obj, distance=True, max_depth=None):
+def get_descendants(obj, distance: bool = True, max_depth: Optional[int] = None) -> Union[List, Dict]:
+	"""
+	Retrieves the descendants of an object.
+
+	Args:
+		obj: The object to retrieve descendants from.
+		distance (bool): If True, returns descendants with their respective distances.
+		max_depth (Optional[int]): Maximum depth for travelling through objects' children.
+
+	Returns:
+		Union[List, Dict]: A list of descendants or a dictionary of descendants with their distances.
+	"""
 	descendants, descendants_dict = _get_descendants(obj=obj, _objects_travelled=None, max_depth=max_depth)
 	if distance:
 		return descendants_dict
